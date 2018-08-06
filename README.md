@@ -4,6 +4,7 @@ This is just a trial project for me to do some simple (low-level) programming on
 It's a work in progress and many things could be improved and/or adjusted to your own taste.  
 Feel free to use it as an example to program with the XLib library.  
   
-Dirk.  
-ForNext Software Development.  
-The Netherlands.  
+Dirk  
+ForNext Software Development    
+info@fornext.nl    
+The Netherlands  
