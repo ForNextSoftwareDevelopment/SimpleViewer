@@ -206,8 +206,6 @@ bool Drawing::LoadImage(std::string img)
     imHeight = cinfo.output_height;
     pixSize  = cinfo.output_components;
 
-    printf("depth = %d\r\n", pixSize);
-
     #ifdef DEBUGIMAGE
         std::string message = "Image is ";
         message.append(Utils::IntToStr(imWidth));

@@ -162,7 +162,7 @@ int main(int argc, char* argv[])
     XSetWMProtocols(pDisplay, mainWindow, &wm_delete, 1);
 
     // Create fifolist control (for folders only to the left side)
-    FiFoList *pFolderList = new FiFoList(0, 0, PREVWIDTH, pScreen->height - PREVHEIGHT - VOFFSET, "/home/xubuntu/Pictures/");
+    FiFoList *pFolderList = new FiFoList(0, 0, PREVWIDTH, pScreen->height - PREVHEIGHT - VOFFSET, "/");
     pFolderList->showFolders = true;
     pFolderList->showFiles = false;
     pFolderList->CreateWindow(pDisplay, mainWindow);
@@ -175,7 +175,7 @@ int main(int argc, char* argv[])
     pPrevDrawing->LoadImage(pic.c_str());
 
     // Create fifolist control (for files and folders to the right side
-    FiFoList *pFileList = new FiFoList(PREVWIDTH + 6, 0, pScreen->width - PREVWIDTH - 6 - HOFFSET, pScreen->height - VOFFSET, "/home/xubuntu/Pictures/");
+    FiFoList *pFileList = new FiFoList(PREVWIDTH + 6, 0, pScreen->width - PREVWIDTH - 6 - HOFFSET, pScreen->height - VOFFSET, "/");
     pFileList->showFolders = true;
     pFileList->showFiles = true;
     pFileList->CreateWindow(pDisplay, mainWindow);
