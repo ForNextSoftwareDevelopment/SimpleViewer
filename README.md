@@ -5,5 +5,7 @@ It's a work in progress and many things could be improved and/or adjusted to you
 Feel free to use it as an example to program with the XLib library.
 
 Dirk.
+
 ForNext Software Development.
+
 The Netherlands.
