@@ -18,6 +18,9 @@ namespace Utils
     // Convert floating point to a string
     std::string FloatToStr (float f);
 
+    // Convert a string to an integer
+    int StrToInt (char *pStrInt);
+
     // Convert a string to a floating point
     float StrToFloat (char *pStrFloat);
 

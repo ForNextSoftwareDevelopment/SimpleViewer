@@ -3,19 +3,19 @@
 /*********************************************************************
 * Constructor
 *********************************************************************/
-FiFoList::FiFoList(int x, int y, int width, int height, std::string folder)
+FiFoList::FiFoList(int x, int y, int width, int height, int fontScale, std::string folder)
 {
     this->x               = x;
     this->y               = y;
     this->width           = width;
     this->height          = height;
+    this->fontScale       = fontScale;
     this->currentFolder   = folder;
     this->selectedFile    = fiList.end();
     this->selectedFolder  = foList.end();
     this->showFiles       = true;
     this->showFolders     = true;
     this->offset          = 0;
-    this->fontScale       = 0;
 }
 
 /*********************************************************************
@@ -115,8 +115,8 @@ void FiFoList::CreateWindow(Display *display, Window parentWindow)
 
     // Get scaled font
     std::string font = listFonts[0];
-    pFont = Utils::LoadQueryScalableFont(display, screen, listFonts[0], 160);
-    if (pFont) fontScale = 160;
+    pFont = Utils::LoadQueryScalableFont(display, screen, listFonts[0], fontScale);
+    if (!pFont) fontScale = 0;
 
     // Get font
     if (!pFont)
@@ -172,13 +172,15 @@ bool FiFoList::EnterSelectedFolder(void)
     {
         char *pStr = (char *) currentFolder.c_str();
         char *pStrStart = pStr;
-        pStr += currentFolder.length();
+        pStr += currentFolder.length() - 1;
 
+        if (*pStr == '/') pStr--;
         while ((pStr != pStrStart) && (*pStr != '/')) pStr--;
         *pStr = 0x00;
 
         newFolder = "";
         newFolder.append (pStrStart);
+        newFolder.append ("/");
         currentFolder = newFolder;
     } else if (newFolder != ".")
     {
@@ -461,9 +463,6 @@ bool FiFoList::IsImage (std::string fileName)
     while ((i >= 0) && (fileName[i] != '.')) i--;
     if ((tolower(fileName[i+1]) == 'j') && (tolower(fileName[i+2]) == 'p') && (tolower(fileName[i+3]) == 'g')) return (true);
     if ((tolower(fileName[i+1]) == 'j') && (tolower(fileName[i+2]) == 'p') && (tolower(fileName[i+3]) == 'e')) return (true);
-//    if ((tolower(fileName[i+1]) == 'p') && (tolower(fileName[i+2]) == 'n') && (tolower(fileName[i+3]) == 'g')) return (true);
-//    if ((tolower(fileName[i+1]) == 'b') && (tolower(fileName[i+2]) == 'm') && (tolower(fileName[i+3]) == 'p')) return (true);
-//    if ((tolower(fileName[i+1]) == 'g') && (tolower(fileName[i+2]) == 'i') && (tolower(fileName[i+3]) == 'f')) return (true);
 
     return (false);
 }

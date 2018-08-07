@@ -162,9 +162,14 @@ bool Drawing::LoadImage(std::string img)
     int row_stride;
 
     f = fopen(img.c_str(), "rb");
-    if (!f) {
+    if (!f)
+    {
         std::string message = "Can't open imagefile: " + img;
         Error::WriteLog("ERROR", "Drawing::LoadImage", message.c_str());
+        if (display && window && imWidth && imHeight)
+        {
+            XClearArea(display, window, 0, 0, width, height, false);
+        }
         return (false);
     }
 
@@ -327,6 +332,19 @@ void Drawing::Paint()
     {
         XClearArea(display, window, 0, 0, width, height, false);
         XCopyArea(display, pixmap, window, gc, 0, 0, imResWidth, imResHeight,  (width - imResWidth) / 2, (height - imResHeight) / 2);
+    }
+}
+
+/*********************************************************************
+* Clear image
+*********************************************************************/
+void Drawing::Clear()
+{
+    if (display && window && imWidth && imHeight)
+    {
+        imWidth  = 0;
+        imHeight = 0;
+        XClearArea(display, window, 0, 0, width, height, false);
     }
 }
 

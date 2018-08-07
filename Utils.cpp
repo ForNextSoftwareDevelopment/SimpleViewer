@@ -331,6 +331,54 @@ namespace Utils
     };
 
     /*********************************************************************
+    * Convert a string to an integer
+    *********************************************************************/
+    int StrToInt (char *pStrInt)
+    {
+        int integer = 0;
+        int number = 0;
+        char *p = pStrInt;
+        bool negativeNumber = false;
+
+        try
+        {
+            // Check for minus sign
+            if (*p == '-')
+            {
+                negativeNumber = true;
+                pStrInt++;
+                p++;
+            };
+
+            // Count the numbers
+            while ((*p == '0') || (*p == '1') || (*p == '2') || (*p == '3') || (*p == '4') || (*p == '5') || (*p == '6') || (*p == '7') || (*p == '8') || (*p == '9'))
+            {
+                number++;
+                p++;
+            };
+
+            // Add number before decimal point
+            for (int i=0; i<number; i++)
+            {
+                int factor = 1;
+                for (int j=number; j>(i+1); j--) factor = factor * 10;
+
+                integer = integer + factor * (*pStrInt - '0');
+                pStrInt++;
+            };
+
+            if (negativeNumber) integer = -integer;
+        } catch (...)
+        {
+            std::string message = "Can't convert: ";
+            message.append(pStrInt);
+            Error::WriteLog("ERROR", "Utils::StrToInt", message.c_str());
+        }
+
+        return (integer);
+    };
+
+    /*********************************************************************
     * Convert a string to a floating point
     *********************************************************************/
     float StrToFloat (char *pStrFloat)

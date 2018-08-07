@@ -43,6 +43,8 @@
 		<Unit filename="Error.h" />
 		<Unit filename="FiFoList.cpp" />
 		<Unit filename="FiFoList.h" />
+		<Unit filename="Files.cpp" />
+		<Unit filename="Files.h" />
 		<Unit filename="Main.cpp" />
 		<Unit filename="Utils.cpp" />
 		<Unit filename="Utils.h" />

@@ -50,7 +50,7 @@ class FiFoList
         int width, height;
 
         // Constructor
-        FiFoList(int x, int y, int width, int height, std::string folder);
+        FiFoList(int x, int y, int width, int height, int fontScale, std::string folder);
 
         // Destructor
         virtual ~FiFoList();

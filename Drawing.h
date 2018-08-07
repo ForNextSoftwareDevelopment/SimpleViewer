@@ -62,6 +62,9 @@ class Drawing
         // Paint image in window
         void Paint();
 
+        // Clear image
+        void Clear();
+
         // Resize window
         void SetSize (unsigned int width, unsigned int height);
 

@@ -9,6 +9,7 @@
 #include <chrono>
 
 #include "Error.h"
+#include "Files.h"
 #include "FiFoList.h"
 #include "Drawing.h"
 
@@ -98,6 +99,74 @@ int main(int argc, char* argv[])
 	// Create new logfile (overwrite old one)
 	Error::CreateLog();
 
+    // Read settings
+    int prevWidth = PREVWIDTH;
+    int prevHeight = PREVHEIGHT;
+    int fontScaleFi = 160;
+    int fontScaleFo = 160;
+    std::string iniFile = Error::GetLogFilePath();
+    iniFile.append(".ini");
+    char *pSettings = Files::ReadFile(iniFile);
+    if (pSettings != NULL)
+    {
+        try
+        {
+            std::string settings;
+            settings.append(pSettings);
+
+            std::vector<std::string> lines;
+            std::string::size_type pos = 0;
+            std::string::size_type prev = 0;
+            while ((pos = settings.find("\n", prev)) != std::string::npos)
+            {
+                lines.push_back(settings.substr(prev, pos - prev));
+                prev = pos + 1;
+            }
+
+            for (int i=0; i<(int)lines.size(); i++)
+            {
+                std::vector<std::string> words;
+                std::string::size_type pos = 0;
+                std::string::size_type prev = 0;
+                while ((pos = lines[i].find(" ", prev)) != std::string::npos)
+                {
+                    words.push_back(lines[i].substr(prev, pos - prev));
+                    prev = pos + 1;
+                }
+                words.push_back(lines[i].substr(prev, pos - prev));
+
+                if (words[0] == "preview")
+                {
+                    if (words.size() > 2)
+                    {
+                        prevWidth = Utils::StrToInt((char*)words[1].c_str());
+                        prevHeight = Utils::StrToInt((char*)words[2].c_str());
+                    } else
+                    {
+                        Error::WriteLog("ERROR", "Main", "Can't read preview preference");
+                    }
+                }
+
+                if (words[0] == "fontscale")
+                {
+                    if (words.size() > 2)
+                    {
+                        fontScaleFo = Utils::StrToInt((char*)words[1].c_str());
+                        fontScaleFi = Utils::StrToInt((char*)words[2].c_str());
+                    } else
+                    {
+                        Error::WriteLog("ERROR", "Main", "Can't read fontscale preference");
+                    }
+                }
+            }
+        } catch (...)
+        {
+            Error::WriteLog("ERROR", "Main", "Can't read (all) preferences");
+        }
+
+        delete pSettings;
+    }
+
     pDisplay = XOpenDisplay(NULL);
     if (pDisplay == NULL)
     {
@@ -152,9 +221,6 @@ int main(int argc, char* argv[])
     // Make window visible
     XMapWindow(pDisplay, mainWindow);
 
-    // Set window title
-    XStoreName(pDisplay, mainWindow, "SimpleViewer");
-
     // Get WM_DELETE_WINDOW atom
     Atom wm_delete = XInternAtom(pDisplay, "WM_DELETE_WINDOW", True);
 
@@ -162,7 +228,7 @@ int main(int argc, char* argv[])
     XSetWMProtocols(pDisplay, mainWindow, &wm_delete, 1);
 
     // Create fifolist control (for folders only to the left side)
-    FiFoList *pFolderList = new FiFoList(0, 0, PREVWIDTH, pScreen->height - PREVHEIGHT - VOFFSET, "/");
+    FiFoList *pFolderList = new FiFoList(0, 0, prevWidth, pScreen->height - prevHeight - VOFFSET, fontScaleFo, "/home/xubuntu/Pictures/");
     pFolderList->showFolders = true;
     pFolderList->showFiles = false;
     pFolderList->CreateWindow(pDisplay, mainWindow);
@@ -170,15 +236,20 @@ int main(int argc, char* argv[])
     // Create preview drawing control
     std::string pic = Error::GetLogFilePath();
     pic.append(".jpg");
-    Drawing *pPrevDrawing = new Drawing(0, pScreen->height - PREVHEIGHT, PREVWIDTH, PREVHEIGHT);
+    Drawing *pPrevDrawing = new Drawing(0, pScreen->height - prevHeight, prevWidth, prevHeight);
     pPrevDrawing->CreateWindow(pDisplay, mainWindow);
     pPrevDrawing->LoadImage(pic.c_str());
 
     // Create fifolist control (for files and folders to the right side
-    FiFoList *pFileList = new FiFoList(PREVWIDTH + 6, 0, pScreen->width - PREVWIDTH - 6 - HOFFSET, pScreen->height - VOFFSET, "/");
+    FiFoList *pFileList = new FiFoList(prevWidth + 6, 0, pScreen->width - prevWidth - 6 - HOFFSET, pScreen->height - VOFFSET, fontScaleFi, "/home/xubuntu/Pictures/");
     pFileList->showFolders = true;
     pFileList->showFiles = true;
     pFileList->CreateWindow(pDisplay, mainWindow);
+
+    // Show current folder to be displayed in fileList
+    current = "SimpleViewer: ";
+    current.append(pFileList->currentFolder);
+    XStoreName(pDisplay, mainWindow, current.c_str());
 
     // Create full drawing window, but do not attach it
     Drawing *pDrawing = new Drawing(0, 0, pScreen->width, pScreen->height);
@@ -240,19 +311,19 @@ int main(int argc, char* argv[])
                 #endif // EVENTDEBUG
                 if ((event.xexpose.window == mainWindow) && pFolderList && pFolderList->window)
                 {
-                   pFolderList->SetSize(0, event.xconfigure.height - PREVHEIGHT - VOFFSET);
+                   pFolderList->SetSize(0, event.xconfigure.height - prevHeight - VOFFSET);
                    pFolderList->Paint();
                 }
 
                 if ((event.xexpose.window == mainWindow) && pPrevDrawing && pPrevDrawing->window)
                 {
-                   pPrevDrawing->SetPosition(0, event.xconfigure.height - PREVHEIGHT - VOFFSET);
+                   pPrevDrawing->SetPosition(0, event.xconfigure.height - prevHeight - VOFFSET);
                    pPrevDrawing->Paint();
                 }
 
                 if ((event.xexpose.window == mainWindow) && pFileList && pFileList->window)
                 {
-                   pFileList->SetSize(event.xconfigure.width - PREVWIDTH - 6 - HOFFSET, event.xconfigure.height - VOFFSET);
+                   pFileList->SetSize(event.xconfigure.width - prevWidth - 6 - HOFFSET, event.xconfigure.height - VOFFSET);
                    pFileList->Paint();
                 }
 
@@ -373,15 +444,21 @@ int main(int argc, char* argv[])
                             break;
                     }
 
-                    newFolder = pFolderList->currentFolder;
-                    newFolder.append("/");
-                    newFolder.append(*pFolderList->selectedFolder);
-                    fileListFill = pFileList->Fill(newFolder);
+                    if ((*pFolderList->selectedFolder != ".") && (*pFolderList->selectedFolder != ".."))
+                    {
+                        newFolder = pFolderList->currentFolder;
+                        newFolder.append("/");
+                        newFolder.append(*pFolderList->selectedFolder);
+                        fileListFill = pFileList->Fill(newFolder);
+                        pPrevDrawing->Clear();
+                    }
                 }
 
                 // Mouse button events in filelist
                 if (pFileList && pFileList->window && (event.xexpose.window == pFileList->window))
                 {
+                    pPrevDrawing->Clear();
+
                     switch (event.xbutton.button)
                     {
                         case 1:
@@ -531,16 +608,19 @@ int main(int argc, char* argv[])
                 {
                         // Escape
                         case 9:
+                            Error::WriteLog("INFO", "Main", "EXIT");
                             exit = true;
                             break;
 
                         // Q
                         case 24:
+                            Error::WriteLog("INFO", "Main", "EXIT");
                             exit = true;
                             break;
 
                         // X
                         case 53:
+                            Error::WriteLog("INFO", "Main", "EXIT");
                             exit = true;
                             break;
                 }
