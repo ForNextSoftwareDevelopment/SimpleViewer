@@ -152,7 +152,7 @@ void FiFoList::CreateWindow(Display *display, Window parentWindow)
     XSetFont (display, gc, pFont->fid);
 
     // Set lineheight
-    if (fontScale > 0) lineHeight = fontScale / 8; else lineHeight=14;
+    if (fontScale > 0) lineHeight = fontScale / 8; else lineHeight=15;
 
     // Fill with root folder
     Fill(currentFolder);
@@ -174,7 +174,7 @@ bool FiFoList::EnterSelectedFolder(void)
         char *pStrStart = pStr;
         pStr += currentFolder.length() - 1;
 
-        if (*pStr == '/') pStr--;
+        if (*pStr == '/') *pStr=0x00;
         while ((pStr != pStrStart) && (*pStr != '/')) pStr--;
         *pStr = 0x00;
 
@@ -184,7 +184,7 @@ bool FiFoList::EnterSelectedFolder(void)
         currentFolder = newFolder;
     } else if (newFolder != ".")
     {
-        currentFolder += "/";
+        if (currentFolder[currentFolder.length() - 1] != '/') currentFolder += "/";
         currentFolder += newFolder;
     }
 

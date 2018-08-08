@@ -104,6 +104,7 @@ int main(int argc, char* argv[])
     int prevHeight = PREVHEIGHT;
     int fontScaleFi = 160;
     int fontScaleFo = 160;
+    std::string startFolder = "/";
     std::string iniFile = Error::GetLogFilePath();
     iniFile.append(".ini");
     char *pSettings = Files::ReadFile(iniFile);
@@ -156,6 +157,17 @@ int main(int argc, char* argv[])
                     } else
                     {
                         Error::WriteLog("ERROR", "Main", "Can't read fontscale preference");
+                    }
+                }
+
+                if (words[0] == "startfolder")
+                {
+                    if (words.size() > 1)
+                    {
+                        startFolder.append(words[1].c_str());
+                    } else
+                    {
+                        Error::WriteLog("ERROR", "Main", "Can't read startfolder preference");
                     }
                 }
             }
@@ -228,7 +240,7 @@ int main(int argc, char* argv[])
     XSetWMProtocols(pDisplay, mainWindow, &wm_delete, 1);
 
     // Create fifolist control (for folders only to the left side)
-    FiFoList *pFolderList = new FiFoList(0, 0, prevWidth, pScreen->height - prevHeight - VOFFSET, fontScaleFo, "/home/xubuntu/Pictures/");
+    FiFoList *pFolderList = new FiFoList(0, 0, prevWidth, pScreen->height - prevHeight - VOFFSET, fontScaleFo, startFolder);
     pFolderList->showFolders = true;
     pFolderList->showFiles = false;
     pFolderList->CreateWindow(pDisplay, mainWindow);
@@ -241,7 +253,7 @@ int main(int argc, char* argv[])
     pPrevDrawing->LoadImage(pic.c_str());
 
     // Create fifolist control (for files and folders to the right side
-    FiFoList *pFileList = new FiFoList(prevWidth + 6, 0, pScreen->width - prevWidth - 6 - HOFFSET, pScreen->height - VOFFSET, fontScaleFi, "/home/xubuntu/Pictures/");
+    FiFoList *pFileList = new FiFoList(prevWidth + 6, 0, pScreen->width - prevWidth - 6 - HOFFSET, pScreen->height - VOFFSET, fontScaleFi, startFolder);
     pFileList->showFolders = true;
     pFileList->showFiles = true;
     pFileList->CreateWindow(pDisplay, mainWindow);
@@ -447,7 +459,7 @@ int main(int argc, char* argv[])
                     if ((*pFolderList->selectedFolder != ".") && (*pFolderList->selectedFolder != ".."))
                     {
                         newFolder = pFolderList->currentFolder;
-                        newFolder.append("/");
+                        if (newFolder[newFolder.length() - 1] != '/') newFolder += "/";
                         newFolder.append(*pFolderList->selectedFolder);
                         fileListFill = pFileList->Fill(newFolder);
                         pPrevDrawing->Clear();
@@ -457,6 +469,7 @@ int main(int argc, char* argv[])
                 // Mouse button events in filelist
                 if (pFileList && pFileList->window && (event.xexpose.window == pFileList->window))
                 {
+                    // Clear the preview drawing
                     pPrevDrawing->Clear();
 
                     switch (event.xbutton.button)
@@ -706,15 +719,21 @@ int main(int argc, char* argv[])
                             break;
                     }
 
-                    newFolder = pFolderList->currentFolder;
-                    newFolder.append("/");
-                    newFolder.append(*pFolderList->selectedFolder);
-                    fileListFill = pFileList->Fill(newFolder);
+                    if ((*pFolderList->selectedFolder != ".") && (*pFolderList->selectedFolder != ".."))
+                    {
+                        newFolder = pFolderList->currentFolder;
+                        if (newFolder[newFolder.length() - 1] != '/') newFolder += "/";
+                        newFolder.append(*pFolderList->selectedFolder);
+                        fileListFill = pFileList->Fill(newFolder);
+                    }
                 }
 
                 // Keyboard events in filelist
                 if (pFileList && pFileList->window && (event.xexpose.window == pFileList->window))
                 {
+                    // Clear the preview drawing
+                    pPrevDrawing->Clear();
+
                     std::string img;
                     switch (event.xkey.keycode)
                     {
