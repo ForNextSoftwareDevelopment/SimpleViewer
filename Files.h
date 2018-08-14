@@ -10,4 +10,5 @@ namespace Files
 {
     // Forward declarations
     char* ReadFile (std::string fileName);
+    void  CopyFile (std::string from, std::string to);
 };

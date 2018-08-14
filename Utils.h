@@ -24,9 +24,6 @@ namespace Utils
     // Convert a string to a floating point
     float StrToFloat (char *pStrFloat);
 
-    // Create a random float
-    float Random(void);
-
     // Show all window property values
     bool showWindowProperties(Display* display, Window window, std::string propname);
 }

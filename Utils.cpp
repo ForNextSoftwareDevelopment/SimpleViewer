@@ -451,24 +451,6 @@ namespace Utils
     };
 
     /*********************************************************************
-    * Create a random float between 0.0f and 1.0f
-    *********************************************************************/
-    float Random (void)
-    {
-        float res;
-        unsigned int tmp;
-        static unsigned int seed = 0xFFFF0C59;
-
-        seed *= 16807;
-
-        tmp = seed ^ (seed >> 4) ^ (seed << 15);
-
-        *((unsigned int *) &res) = (tmp >> 9) | 0x3F800000;
-
-        return (res - 1.0);
-    }
-
-    /*********************************************************************
     * Show all window property values
     *********************************************************************/
     bool showWindowProperties(Display* display, Window window, std::string propname)

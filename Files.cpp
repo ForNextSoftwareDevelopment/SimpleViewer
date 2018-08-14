@@ -27,3 +27,13 @@ char* Files::ReadFile (std::string fileName)
     return (memblock);
 };
 
+/*********************************************************************
+* Copy file
+*********************************************************************/
+void Files::CopyFile (std::string from, std::string to)
+{
+    std::ifstream  src(from, std::ios::binary);
+    std::ofstream  dst(to,   std::ios::binary);
+
+    dst << src.rdbuf();
+};

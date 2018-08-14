@@ -29,7 +29,7 @@ namespace Error
         std::string strTime;
         std::string strMessage;
 
-        logFile = fopen((logFilePath + "Log.txt").c_str() , "w" );
+        logFile = fopen((logFilePath + "/simpleviewer.log").c_str() , "w" );
         if (logFile != NULL)
         {
            // Write info message to log file
@@ -67,7 +67,7 @@ namespace Error
         std::string strTime;
         std::string strMessage;
 
-        logFile = fopen((logFilePath + "Log.txt").c_str() , "a" );
+        logFile = fopen((logFilePath + "/simpleviewer.log").c_str() , "a" );
         if (logFile != NULL)
         {
             // Write info message to log file

@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <pwd.h>
 #include <chrono>
 
 #include "Error.h"
@@ -84,6 +86,7 @@ int main(int argc, char* argv[])
     std::chrono::high_resolution_clock::time_point t2 = std::chrono:: high_resolution_clock::now();
     std::chrono::duration<double> timeSpan;
 
+    /*
     // Get the application folder
     char result[255];
     for (int i=0; i<255; i++) result[i]=0;
@@ -95,8 +98,37 @@ int main(int argc, char* argv[])
     {
         Error::SetLogFilePath(argv[0]);
     }
+    */
+
+    // Get the home folder
+    const char *homeDir = getenv("HOME");
+    if (homeDir == NULL)
+    {
+        homeDir = getpwuid(getuid())->pw_dir;
+    }
+
+    std::string strHome;
+    if (homeDir == NULL)
+    {
+        strHome == "/home";
+        Error::WriteLog("ERROR", "Main", "Can't read home folder, using '/home'");
+    } else
+    {
+        strHome.append(homeDir);
+        strHome.append("/.simpleviewer");
+        if (opendir(strHome.c_str()) == NULL)
+        {
+            int err = mkdir(strHome.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+            if (err == -1)
+            {
+                Error::WriteLog("ERROR", "Main", "Can't create subfolder in home folder, using '/home'");
+                strHome == "/home";
+            }
+        }
+    }
 
 	// Create new logfile (overwrite old one)
+    Error::SetLogFilePath(strHome.c_str());
 	Error::CreateLog();
 
     // Read settings
@@ -106,8 +138,19 @@ int main(int argc, char* argv[])
     int fontScaleFo = 160;
     std::string startFolder = "/";
     std::string iniFile = Error::GetLogFilePath();
-    iniFile.append(".ini");
+    iniFile.append("/simpleviewer.ini");
     char *pSettings = Files::ReadFile(iniFile);
+
+    // No ini file, so copy from /usr/share/simpleviewer/ to home folder (together with simpleviewer.jpg)
+    if (pSettings == NULL)
+    {
+        Files::CopyFile("/usr/share/simpleviewer/simpleviewer.ini", iniFile);
+        std::string jpgFile = Error::GetLogFilePath();
+        jpgFile.append("/simpleviewer.jpg");
+        Files::CopyFile("/usr/share/simpleviewer/simpleviewer.jpg", jpgFile);
+    }
+
+    pSettings = Files::ReadFile(iniFile);
     if (pSettings != NULL)
     {
         try
@@ -177,6 +220,9 @@ int main(int argc, char* argv[])
         }
 
         delete pSettings;
+    } else
+    {
+        Error::WriteLog("ERROR", "Main", "Can't read preferences file");
     }
 
     pDisplay = XOpenDisplay(NULL);
@@ -247,7 +293,7 @@ int main(int argc, char* argv[])
 
     // Create preview drawing control
     std::string pic = Error::GetLogFilePath();
-    pic.append(".jpg");
+    pic.append("/simpleviewer.jpg");
     Drawing *pPrevDrawing = new Drawing(0, pScreen->height - prevHeight, prevWidth, prevHeight);
     pPrevDrawing->CreateWindow(pDisplay, mainWindow);
     pPrevDrawing->LoadImage(pic.c_str());
@@ -456,6 +502,7 @@ int main(int argc, char* argv[])
                             break;
                     }
 
+                    // Fill filelist with entries from the selected folder
                     if ((*pFolderList->selectedFolder != ".") && (*pFolderList->selectedFolder != ".."))
                     {
                         newFolder = pFolderList->currentFolder;
@@ -463,6 +510,18 @@ int main(int argc, char* argv[])
                         newFolder.append(*pFolderList->selectedFolder);
                         fileListFill = pFileList->Fill(newFolder);
                         pPrevDrawing->Clear();
+
+                        // Show first image in filelist (if present)
+                        if (pFileList->fiList.size() > 0)
+                        {
+                            pFileList->selectedFolder = pFileList->foList.end();
+                            pFileList->selectedFile = pFileList->fiList.begin();
+                            img = pFileList->currentFolder;
+                            img.append("/");
+                            img.append(*pFileList->selectedFile);
+                            pPrevDrawing->LoadImage(img);
+                            pFileList->Paint();
+                        }
                     }
                 }
 
@@ -725,6 +784,19 @@ int main(int argc, char* argv[])
                         if (newFolder[newFolder.length() - 1] != '/') newFolder += "/";
                         newFolder.append(*pFolderList->selectedFolder);
                         fileListFill = pFileList->Fill(newFolder);
+                        pPrevDrawing->Clear();
+
+                        // Show first image in filelist (if present)
+                        if (pFileList->fiList.size() > 0)
+                        {
+                            pFileList->selectedFolder = pFileList->foList.end();
+                            pFileList->selectedFile = pFileList->fiList.begin();
+                            img = pFileList->currentFolder;
+                            img.append("/");
+                            img.append(*pFileList->selectedFile);
+                            pPrevDrawing->LoadImage(img);
+                            pFileList->Paint();
+                        }
                     }
                 }
 
