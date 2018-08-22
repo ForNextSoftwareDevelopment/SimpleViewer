@@ -46,6 +46,7 @@
 		<Unit filename="Files.cpp" />
 		<Unit filename="Files.h" />
 		<Unit filename="Main.cpp" />
+		<Unit filename="Main.h" />
 		<Unit filename="Utils.cpp" />
 		<Unit filename="Utils.h" />
 		<Extensions>

@@ -59,7 +59,7 @@ void Drawing::CreateWindow(Display *display, Window parentWindow)
     unsigned long attrs_mask = CWEventMask | CWBackPixel | CWBorderPixel;
 
     // Create and map container window
-    window = XCreateWindow(display, parentWindow, x, y, width, height, 3, CopyFromParent, InputOutput, CopyFromParent, attrs_mask, &attrs);
+    window = XCreateWindow(display, parentWindow, x, y, width, height, 1, CopyFromParent, InputOutput, CopyFromParent, attrs_mask, &attrs);
 
     // Get graphical context
     gc = XCreateGC(display, window, 0, 0);
@@ -106,6 +106,8 @@ void Drawing::SetSize (unsigned int width, unsigned int height)
 
     this->width  = width;
     this->height = height;
+
+    Paint();
 }
 
 /*********************************************************************
@@ -117,6 +119,8 @@ void Drawing::SetPosition (unsigned int x, unsigned int y)
 
     this->x = x;
     this->y = y;
+
+    Paint();
 }
 
 

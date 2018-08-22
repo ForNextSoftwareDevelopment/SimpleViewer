@@ -1,71 +1,5 @@
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/Xatom.h>
-
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <pwd.h>
-#include <chrono>
-
-#include "Error.h"
-#include "Files.h"
-#include "FiFoList.h"
-#include "Drawing.h"
-
-#define PREVWIDTH   400
-#define PREVHEIGHT  400
-#define VOFFSET     6
-#define HOFFSET     6
-
-#undef EVENTDEBUG
-
-static const char *event_names[] = {
-   "",
-   "",
-   "KeyPress",
-   "KeyRelease",
-   "ButtonPress",
-   "ButtonRelease",
-   "MotionNotify",
-   "EnterNotify",
-   "LeaveNotify",
-   "FocusIn",
-   "FocusOut",
-   "KeymapNotify",
-   "Expose",
-   "GraphicsExpose",
-   "NoExpose",
-   "VisibilityNotify",
-   "CreateNotify",
-   "DestroyNotify",
-   "UnmapNotify",
-   "MapNotify",
-   "MapRequest",
-   "ReparentNotify",
-   "ConfigureNotify",
-   "ConfigureRequest",
-   "GravityNotify",
-   "ResizeRequest",
-   "CirculateNotify",
-   "CirculateRequest",
-   "PropertyNotify",
-   "SelectionClear",
-   "SelectionRequest",
-   "SelectionNotify",
-   "ColormapNotify",
-   "ClientMessage",
-   "MappingNotify"
-};
-
-// main display and window
-Display* pDisplay;
-Window mainWindow;
-
-void FullScreen(void);
-void MaximizedScreen(void);
+#pragma once
+#include "Main.h"
 
 int main(int argc, char* argv[])
 {
@@ -271,7 +205,7 @@ int main(int argc, char* argv[])
 
     // Create and map container window
     Screen *pScreen = ScreenOfDisplay(pDisplay, 0);
-    mainWindow = XCreateWindow(pDisplay, RootWindow(pDisplay, screen), 0, 0, 800, 600, 0, CopyFromParent, InputOutput, CopyFromParent, attrs_mask, &attrs);
+    mainWindow = XCreateWindow(pDisplay, RootWindow(pDisplay, screen), 0, 0, pScreen->width, pScreen->height, 0, CopyFromParent, InputOutput, CopyFromParent, attrs_mask, &attrs);
 
     // Maximize screen
     MaximizedScreen();
@@ -294,7 +228,7 @@ int main(int argc, char* argv[])
     // Create preview drawing control
     std::string pic = Error::GetLogFilePath();
     pic.append("/simpleviewer.jpg");
-    Drawing *pPrevDrawing = new Drawing(0, pScreen->height - prevHeight, prevWidth, prevHeight);
+    Drawing *pPrevDrawing = new Drawing(HOFFSET-4, pScreen->height - prevHeight + VOFFSET-4, prevWidth, prevHeight - VOFFSET);
     pPrevDrawing->CreateWindow(pDisplay, mainWindow);
     pPrevDrawing->LoadImage(pic.c_str());
 
@@ -321,6 +255,7 @@ int main(int argc, char* argv[])
         XEvent event;
         XNextEvent(pDisplay, &event);
         std::string img;
+        bool scrollBarSelected;
 
         switch (event.type)
         {
@@ -367,22 +302,26 @@ int main(int argc, char* argv[])
                     }
                     Error::WriteLog("INFO", "Main", message.c_str());
                 #endif // EVENTDEBUG
+
+                // Set new window size and position
+                curScreenX       = event.xconfigure.x;
+                curScreenY       = event.xconfigure.y;
+                curScreenWidth   = event.xconfigure.width;
+                curScreenHeight  = event.xconfigure.height;
+
                 if ((event.xexpose.window == mainWindow) && pFolderList && pFolderList->window)
                 {
                    pFolderList->SetSize(0, event.xconfigure.height - prevHeight - VOFFSET);
-                   pFolderList->Paint();
                 }
 
                 if ((event.xexpose.window == mainWindow) && pPrevDrawing && pPrevDrawing->window)
                 {
-                   pPrevDrawing->SetPosition(0, event.xconfigure.height - prevHeight - VOFFSET);
-                   pPrevDrawing->Paint();
+                   pPrevDrawing->SetPosition(HOFFSET-4, event.xconfigure.height - prevHeight + VOFFSET-4);
                 }
 
                 if ((event.xexpose.window == mainWindow) && pFileList && pFileList->window)
                 {
                    pFileList->SetSize(event.xconfigure.width - prevWidth - 6 - HOFFSET, event.xconfigure.height - VOFFSET);
-                   pFileList->Paint();
                 }
 
                 break;
@@ -404,6 +343,9 @@ int main(int argc, char* argv[])
                     Error::WriteLog("INFO", "Main", message.c_str());
                 #endif // EVENTDEBUG
 
+                // Clear preview drawing
+                pPrevDrawing->Clear();
+
                 // Mouse button events in full drawing window
                 if (pDrawing && pDrawing->window && (event.xexpose.window == pDrawing->window))
                 {
@@ -417,53 +359,30 @@ int main(int argc, char* argv[])
                             if (timeSpan.count() < 0.3)
                             {
                                 pDrawing->Detach();
-
-                                MaximizedScreen();
-
+                                NormalScreen();
                                 pFileList->Paint();
                                 pFolderList->Paint();
-
-                                img = pFileList->currentFolder;
-                                img.append("/");
-                                img.append(*pFileList->selectedFile);
-                                pPrevDrawing->LoadImage(img);
-                                pPrevDrawing->Paint();
                             }
                             break;
 
                         // Scroll up
                         case 4:
-                            if (pFileList->selectedFile != pFileList->fiList.end())
-                            {
-                                // Scroll in filelist
-                                if (pFileList->selectedFile != pFileList->fiList.begin())
-                                {
-                                    pFileList->selectedFile--;
-                                    img = pFileList->currentFolder;
-                                    img.append("/");
-                                    img.append(*pFileList->selectedFile);
-                                    pDrawing->LoadImage(img);
-                                }
-                            }
+                            pFileList->ScrollUp(1);
                             break;
 
                         // Scroll down
                         case 5:
-                            if (pFileList->selectedFile != pFileList->fiList.end())
-                            {
-                                // Scroll in filelist
-                                pFileList->selectedFile++;
-                                if (pFileList->selectedFile == pFileList->fiList.end())
-                                {
-                                    pFileList->selectedFile--;
-                                }
-
-                                img = pFileList->currentFolder;
-                                img.append("/");
-                                img.append(*pFileList->selectedFile);
-                                pDrawing->LoadImage(img);
-                            }
+                            pFileList->ScrollDown(1);
                             break;
+                    }
+
+                    // Load image
+                    if (pFileList->selectedFile != pFileList->fiList.end())
+                    {
+                        img = pFileList->currentFolder;
+                        img.append("/");
+                        img.append(*pFileList->selectedFile);
+                        pDrawing->LoadImage(img);
                     }
                 }
 
@@ -473,32 +392,30 @@ int main(int argc, char* argv[])
                     switch (event.xbutton.button)
                     {
                         case 1:
-                            pFolderList->ButtonPressed(event.xbutton.x, event.xbutton.y);
+                            // Calculate selected file/folder
+                            scrollBarSelected = pFolderList->ButtonPressed(event.xbutton.x, event.xbutton.y);
 
-                            // Check for double click
-                            t2 = t1;
-                            t1 = std::chrono:: high_resolution_clock::now();
-                            timeSpan = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t2);
-                            if (timeSpan.count() < 0.3)
+                            if (!scrollBarSelected)
                             {
-                                pFolderList->EnterSelectedFolder();
+                                // Check for double click
+                                t2 = t1;
+                                t1 = std::chrono:: high_resolution_clock::now();
+                                timeSpan = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t2);
+                                if (timeSpan.count() < 0.3)
+                                {
+                                    pFolderList->EnterSelectedFolder();
+                                }
                             }
                             break;
 
                         // Scroll up
                         case 4:
-                            if (pFolderList->selectedFolder != pFolderList->foList.begin())
-                            {
-                                pFolderList->selectedFolder--;
-                                pFolderList->Paint();
-                            }
+                            pFolderList->ScrollUp(1);
                             break;
 
                         // Scroll down
                         case 5:
-                            pFolderList->selectedFolder++;
-                            if (pFolderList->selectedFolder == pFolderList->foList.end()) pFolderList->selectedFolder--;
-                            pFolderList->Paint();
+                            pFolderList->ScrollDown(1);
                             break;
                     }
 
@@ -509,139 +426,67 @@ int main(int argc, char* argv[])
                         if (newFolder[newFolder.length() - 1] != '/') newFolder += "/";
                         newFolder.append(*pFolderList->selectedFolder);
                         fileListFill = pFileList->Fill(newFolder);
-                        pPrevDrawing->Clear();
 
-                        // Show first image in filelist (if present)
+                        // Set selected file to first image in filelist (if present)
                         if (pFileList->fiList.size() > 0)
                         {
                             pFileList->selectedFolder = pFileList->foList.end();
                             pFileList->selectedFile = pFileList->fiList.begin();
-                            img = pFileList->currentFolder;
-                            img.append("/");
-                            img.append(*pFileList->selectedFile);
-                            pPrevDrawing->LoadImage(img);
-                            pFileList->Paint();
                         }
+
+                        // Redraw filelist
+                        pFileList->Paint();
                     }
                 }
 
                 // Mouse button events in filelist
                 if (pFileList && pFileList->window && (event.xexpose.window == pFileList->window))
                 {
-                    // Clear the preview drawing
-                    pPrevDrawing->Clear();
-
                     switch (event.xbutton.button)
                     {
                         case 1:
-                            pFileList->ButtonPressed(event.xbutton.x, event.xbutton.y);
-                            if (pFileList->selectedFile != pFileList->fiList.end())
+                            // Calculate selected file/folder
+                            scrollBarSelected = pFileList->ButtonPressed(event.xbutton.x, event.xbutton.y);
+
+                            if (!scrollBarSelected)
                             {
-                                img = pFileList->currentFolder;
-                                img.append("/");
-                                img.append(*pFileList->selectedFile);
-                                pPrevDrawing->LoadImage(img);
-                            }
-
-                            t2 = t1;
-                            t1 = std::chrono:: high_resolution_clock::now();
-                            timeSpan = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t2);
-                            if (timeSpan.count() < 0.3)
-                            {
-                                // Check if this is a folder
-                                if (pFileList->selectedFolder != pFileList->foList.end())
+                                t2 = t1;
+                                t1 = std::chrono:: high_resolution_clock::now();
+                                timeSpan = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t2);
+                                if (timeSpan.count() < 0.3)
                                 {
-                                    fileListFill = pFileList->EnterSelectedFolder();
-                                }
+                                    // Check if this is a folder
+                                    if (pFileList->selectedFolder != pFileList->foList.end())
+                                    {
+                                        fileListFill = pFileList->EnterSelectedFolder();
+                                    }
 
-                                // Check if this is an image file
-                                if (pFileList->selectedFile != pFileList->fiList.end())
-                                {
-                                    // Show full screen drawing
-                                    FullScreen();
+                                    // Check if this is an image file
+                                    if (pFileList->selectedFile != pFileList->fiList.end())
+                                    {
+                                        // Show full screen drawing
+                                        FullScreen();
 
-                                    // Load image
-                                    img = pFileList->currentFolder;
-                                    img.append("/");
-                                    img.append(*pFileList->selectedFile);
-                                    pDrawing->LoadImage(img.c_str());
-                                    pDrawing->Attach();
-                                    pDrawing->Paint();
+                                        // Load image
+                                        img = pFileList->currentFolder;
+                                        img.append("/");
+                                        img.append(*pFileList->selectedFile);
+                                        pDrawing->LoadImage(img.c_str());
+                                        pDrawing->Attach();
+                                        pDrawing->Paint();
+                                    }
                                 }
                             }
                             break;
 
                         // Scroll up
                         case 4:
-                            if (pFileList->selectedFolder != pFileList->foList.end())
-                            {
-                                // Scroll in folderlist
-                                if (pFileList->selectedFolder != pFileList->foList.begin())
-                                {
-                                    pFileList->selectedFolder--;
-                                    pFileList->Paint();
-                                }
-                            } else
-                            if (pFileList->selectedFile != pFileList->fiList.end())
-                            {
-                                // Scroll in filelist
-                                if (pFileList->selectedFile != pFileList->fiList.begin())
-                                {
-                                    pFileList->selectedFile--;
-                                    pFileList->Paint();
-
-                                    img = pFileList->currentFolder;
-                                    img.append("/");
-                                    img.append(*pFileList->selectedFile);
-                                    pPrevDrawing->LoadImage(img);
-                                } else
-                                {
-                                    // Goto folderlist
-                                    pFileList->selectedFile = pFileList->fiList.end();
-                                    pFileList->selectedFolder = pFileList->foList.end();
-                                    pFileList->selectedFolder--;
-                                    pFileList->Paint();
-                                }
-                            }
+                            pFileList->ScrollUp(1);
                             break;
 
                         // Scroll down
                         case 5:
-                            if (pFileList->selectedFolder != pFileList->foList.end())
-                            {
-                                // Scroll in folderlist
-                                pFileList->selectedFolder++;
-                                if (pFileList->selectedFolder != pFileList->foList.end())
-                                {
-                                    pFileList->Paint();
-                                } else
-                                {
-                                    if (pFileList->fiList.size() > 0)
-                                    {
-                                        pFileList->selectedFile = pFileList->fiList.begin();
-                                        pFileList->Paint();
-                                    } else
-                                    {
-                                        pFileList->selectedFolder--;
-                                        pFileList->Paint();
-                                    }
-                                }
-                            } else
-                            if (pFileList->selectedFile != pFileList->fiList.end())
-                            {
-                                // Scroll in filelist
-                                pFileList->selectedFile++;
-                                if (pFileList->selectedFile == pFileList->fiList.end())
-                                {
-                                    pFileList->selectedFile--;
-                                }
-                                pFileList->Paint();
-
-                                img = pFileList->currentFolder;
-                                img.append("/");
-                                img.append(*pFileList->selectedFile);
-                                pPrevDrawing->LoadImage(img);
-                            }
+                            pFileList->ScrollDown(1);
                             break;
                     }
                 }
@@ -656,6 +501,15 @@ int main(int argc, char* argv[])
                 }
                 current.append(pFileList->currentFolder);
                 XStoreName(pDisplay, mainWindow, current.c_str());
+
+                // Load preview image
+                if (pFileList->selectedFile != pFileList->fiList.end())
+                {
+                    img = pFileList->currentFolder;
+                    img.append("/");
+                    img.append(*pFileList->selectedFile);
+                    pPrevDrawing->LoadImage(img);
+                }
                 break;
 
             case KeyPress:
@@ -675,15 +529,12 @@ int main(int argc, char* argv[])
                     Error::WriteLog("INFO", "Main", message.c_str());
                 #endif // EVENTDEBUG
 
+                // Clear preview drawing
+                pPrevDrawing->Clear();
+
                 // For all windows
                 switch (event.xkey.keycode)
                 {
-                        // Escape
-                        case 9:
-                            Error::WriteLog("INFO", "Main", "EXIT");
-                            exit = true;
-                            break;
-
                         // Q
                         case 24:
                             Error::WriteLog("INFO", "Main", "EXIT");
@@ -702,52 +553,50 @@ int main(int argc, char* argv[])
                 {
                     switch (event.xkey.keycode)
                     {
+                        // Escape
+                        case 9:
+                            pDrawing->Detach();
+                            NormalScreen();
+                            pFileList->Paint();
+                            pFolderList->Paint();
+                            break;
+
                         // Enter
                         case 36:
                             pDrawing->Detach();
+                            NormalScreen();
                             pFileList->Paint();
                             pFolderList->Paint();
-
-                            img = pFileList->currentFolder;
-                            img.append("/");
-                            img.append(*pFileList->selectedFile);
-                            pPrevDrawing->LoadImage(img);
-                            pPrevDrawing->Paint();
                             break;
 
                         // Scroll up
                         case 111:
-                            if (pFileList->selectedFile != pFileList->fiList.end())
-                            {
-                                // Scroll in filelist
-                                if (pFileList->selectedFile != pFileList->fiList.begin())
-                                {
-                                    pFileList->selectedFile--;
-                                    img = pFileList->currentFolder;
-                                    img.append("/");
-                                    img.append(*pFileList->selectedFile);
-                                    pDrawing->LoadImage(img);
-                                }
-                            }
+                            pFileList->ScrollUp(1);
                             break;
 
                         // Scroll down
                         case 116:
-                            if (pFileList->selectedFile != pFileList->fiList.end())
-                            {
-                                // Scroll in filelist
-                                pFileList->selectedFile++;
-                                if (pFileList->selectedFile == pFileList->fiList.end())
-                                {
-                                    pFileList->selectedFile--;
-                                }
-
-                                img = pFileList->currentFolder;
-                                img.append("/");
-                                img.append(*pFileList->selectedFile);
-                                pDrawing->LoadImage(img);
-                            }
+                            pFileList->ScrollDown(1);
                             break;
+
+                        // Page up
+                        case 112:
+                            pFileList->ScrollUp(1);
+                            break;
+
+                        // Page down
+                        case 117:
+                            pFileList->ScrollDown(1);
+                            break;
+                    }
+
+                    // Load image
+                    if (pFileList->selectedFile != pFileList->fiList.end())
+                    {
+                        img = pFileList->currentFolder;
+                        img.append("/");
+                        img.append(*pFileList->selectedFile);
+                        pDrawing->LoadImage(img);
                     }
                 }
 
@@ -763,18 +612,22 @@ int main(int argc, char* argv[])
 
                         // Scroll up
                         case 111:
-                            if (pFolderList->selectedFolder != pFolderList->foList.begin())
-                            {
-                                pFolderList->selectedFolder--;
-                                pFolderList->Paint();
-                            }
+                            pFolderList->ScrollUp(1);
                             break;
 
                         // Scroll down
                         case 116:
-                            pFolderList->selectedFolder++;
-                            if (pFolderList->selectedFolder == pFolderList->foList.end()) pFolderList->selectedFolder--;
-                            pFolderList->Paint();
+                            pFolderList->ScrollDown(1);
+                            break;
+
+                        // Page up
+                        case 112:
+                            pFolderList->ScrollUp(10);
+                            break;
+
+                        // Page down
+                        case 117:
+                            pFolderList->ScrollDown(10);
                             break;
                     }
 
@@ -786,17 +639,15 @@ int main(int argc, char* argv[])
                         fileListFill = pFileList->Fill(newFolder);
                         pPrevDrawing->Clear();
 
-                        // Show first image in filelist (if present)
+                        // Select first image in filelist (if present)
                         if (pFileList->fiList.size() > 0)
                         {
                             pFileList->selectedFolder = pFileList->foList.end();
                             pFileList->selectedFile = pFileList->fiList.begin();
-                            img = pFileList->currentFolder;
-                            img.append("/");
-                            img.append(*pFileList->selectedFile);
-                            pPrevDrawing->LoadImage(img);
-                            pFileList->Paint();
                         }
+
+                        // Redraw filelist
+                        pFileList->Paint();
                     }
                 }
 
@@ -834,74 +685,22 @@ int main(int argc, char* argv[])
 
                         // Scroll up
                         case 111:
-                            if (pFileList->selectedFolder != pFileList->foList.end())
-                            {
-                                // Scroll in folderlist
-                                if (pFileList->selectedFolder != pFileList->foList.begin())
-                                {
-                                    pFileList->selectedFolder--;
-                                    pFileList->Paint();
-                                }
-                            } else
-                            if (pFileList->selectedFile != pFileList->fiList.end())
-                            {
-                                // Scroll in filelist
-                                if (pFileList->selectedFile != pFileList->fiList.begin())
-                                {
-                                    pFileList->selectedFile--;
-                                    pFileList->Paint();
-                                    img = pFileList->currentFolder;
-                                    img.append("/");
-                                    img.append(*pFileList->selectedFile);
-                                    pPrevDrawing->LoadImage(img);
-                                } else
-                                {
-                                    // Goto folderlist
-                                    pFileList->selectedFile = pFileList->fiList.end();
-                                    pFileList->selectedFolder = pFileList->foList.end();
-                                    pFileList->selectedFolder--;
-                                    pFileList->Paint();
-                                }
-                            }
+                            pFileList->ScrollUp(1);
                             break;
 
                         // Scroll down
                         case 116:
-                            if (pFileList->selectedFolder != pFileList->foList.end())
-                            {
-                                // Scroll in folderlist
-                                pFileList->selectedFolder++;
-                                if (pFileList->selectedFolder != pFileList->foList.end())
-                                {
-                                    pFileList->Paint();
-                                } else
-                                {
-                                    if (pFileList->fiList.size() > 0)
-                                    {
-                                        pFileList->selectedFile = pFileList->fiList.begin();
-                                        pFileList->Paint();
-                                    } else
-                                    {
-                                        pFileList->selectedFolder--;
-                                        pFileList->Paint();
-                                    }
-                                }
-                            } else
-                            if (pFileList->selectedFile != pFileList->fiList.end())
-                            {
-                                // Scroll in filelist
-                                pFileList->selectedFile++;
-                                if (pFileList->selectedFile == pFileList->fiList.end())
-                                {
-                                    pFileList->selectedFile--;
-                                }
-                                pFileList->Paint();
+                            pFileList->ScrollDown(1);
+                            break;
 
-                                img = pFileList->currentFolder;
-                                img.append("/");
-                                img.append(*pFileList->selectedFile);
-                                pPrevDrawing->LoadImage(img);
-                            }
+                        // Page up
+                        case 112:
+                            pFileList->ScrollUp(10);
+                            break;
+
+                        // Page down
+                        case 117:
+                            pFileList->ScrollDown(10);
                             break;
                     }
                 }
@@ -916,6 +715,16 @@ int main(int argc, char* argv[])
                 }
                 current.append(pFileList->currentFolder);
                 XStoreName(pDisplay, mainWindow, current.c_str());
+
+                // Load preview image
+                if (pFileList->selectedFile != pFileList->fiList.end())
+                {
+                    img = pFileList->currentFolder;
+                    img.append("/");
+                    img.append(*pFileList->selectedFile);
+                    pPrevDrawing->LoadImage(img);
+                }
+
                 break;
 
             case Expose:
@@ -1002,6 +811,11 @@ int main(int argc, char* argv[])
 *********************************************************************/
 void FullScreen(void)
 {
+    oldScreenX      = curScreenX;
+    oldScreenY      = curScreenY;
+    oldScreenWidth  = curScreenWidth;
+    oldScreenHeight = curScreenHeight;
+
     // Unmap window for enabling changing properties
     XUnmapWindow(pDisplay, mainWindow);
     XSync(pDisplay, false);
@@ -1024,9 +838,11 @@ void FullScreen(void)
 *********************************************************************/
 void MaximizedScreen(void)
 {
+    Screen *pScreen = ScreenOfDisplay(pDisplay, 0);
+
     // Unmap window for enabling changing properties
     XUnmapWindow(pDisplay, mainWindow);
-    XMoveResizeWindow(pDisplay, mainWindow, 0, 0, 800, 600);
+    XMoveResizeWindow(pDisplay, mainWindow, 0, 0, pScreen->width, pScreen->height);
     XSync(pDisplay, false);
 
     Atom atoms[5] = {
@@ -1042,5 +858,33 @@ void MaximizedScreen(void)
     // Make window visible
     XMapWindow(pDisplay, mainWindow);
     XFlush(pDisplay);
+}
+
+/*********************************************************************
+* Normal screen
+*********************************************************************/
+void NormalScreen(void)
+{
+    // Unmap window for enabling changing properties
+    XUnmapWindow(pDisplay, mainWindow);
+    XSync(pDisplay, false);
+
+    Atom atoms[3] = {
+                        XInternAtom(pDisplay, "_NET_WM_STATE_ADD", false),
+                        XInternAtom(pDisplay, "_NET_WM_STATE_MODAL", false),
+                        None
+                    };
+
+    XChangeProperty(pDisplay, mainWindow, XInternAtom(pDisplay, "_NET_WM_STATE", False), XA_ATOM, 32, PropModeReplace, (const unsigned char*)atoms, 2);
+
+    // Change to old position and size
+    XMoveResizeWindow(pDisplay, mainWindow, oldScreenX, oldScreenY, oldScreenWidth, oldScreenHeight);
+
+    // Make window visible
+    XMapWindow(pDisplay, mainWindow);
+    XFlush(pDisplay);
+
+    // Change to old position and size
+    XMoveResizeWindow(pDisplay, mainWindow, oldScreenX, oldScreenY, oldScreenWidth, oldScreenHeight);
 }
 

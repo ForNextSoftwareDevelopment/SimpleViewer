@@ -13,6 +13,7 @@ FiFoList::FiFoList(int x, int y, int width, int height, int fontScale, std::stri
     this->currentFolder   = folder;
     this->selectedFile    = fiList.end();
     this->selectedFolder  = foList.end();
+    this->selectedItem    = 0;
     this->showFiles       = true;
     this->showFolders     = true;
     this->offset          = 0;
@@ -24,27 +25,27 @@ FiFoList::FiFoList(int x, int y, int width, int height, int fontScale, std::stri
 FiFoList::~FiFoList()
 {
     // Free resources
-  	if (gc) XFreeGC(display, gc);
-	if (window) XDestroyWindow(display, window);
+  	if (gc) XFreeGC(pDisplay, gc);
+	if (window) XDestroyWindow(pDisplay, window);
 }
 
 /*********************************************************************
 * Create a window for the filelist and attach it to a parent window
 *********************************************************************/
-void FiFoList::CreateWindow(Display *display, Window parentWindow)
+void FiFoList::CreateWindow(Display *pDisplay, Window parentWindow)
 {
-    this->display = display;
+    this->pDisplay = pDisplay;
     this->parentWindow = parentWindow;
 
-    int screen = DefaultScreen(display);
+    int screen = DefaultScreen(pDisplay);
 
     // Define used colors
-    Colormap colormap = DefaultColormap(display, screen);
-    XAllocNamedColor(display, colormap, "white", &white, &white);
-    XAllocNamedColor(display, colormap, "red",   &red,   &red);
-    XAllocNamedColor(display, colormap, "blue",  &blue,  &blue);
-    XAllocNamedColor(display, colormap, "grey",  &grey,  &grey);
-    XAllocNamedColor(display, colormap, "black", &black, &black);
+    Colormap colormap = DefaultColormap(pDisplay, screen);
+    XAllocNamedColor(pDisplay, colormap, "white", &white, &white);
+    XAllocNamedColor(pDisplay, colormap, "red",   &red,   &red);
+    XAllocNamedColor(pDisplay, colormap, "blue",  &blue,  &blue);
+    XAllocNamedColor(pDisplay, colormap, "grey",  &grey,  &grey);
+    XAllocNamedColor(pDisplay, colormap, "black", &black, &black);
 
     // Initialize window attributes
     XSetWindowAttributes attrs;
@@ -64,58 +65,30 @@ void FiFoList::CreateWindow(Display *display, Window parentWindow)
     unsigned long attrs_mask = CWEventMask | CWBackPixel | CWBorderPixel;
 
     // Create and map container window
-    window = XCreateWindow(display, parentWindow, x, y, width, height, 3, CopyFromParent, InputOutput, CopyFromParent, attrs_mask, &attrs);
+    window = XCreateWindow(pDisplay, parentWindow, x, y, width, height, 3, CopyFromParent, InputOutput, CopyFromParent, attrs_mask, &attrs);
 
     // Get graphical context
-    gc = XCreateGC(display, window, 0, 0);
+    gc = XCreateGC(pDisplay, window, 0, 0);
 
     // Make window visible
-    XMapWindow(display, window);
-
-/*  TODO: Add extra font to application
-    // Add new font path (if needed)
-    std::string fontFolder = Error::GetLogFilePath() + "/font/";
-
-    int numFonts;
-    char **fontDirListOrg;
-    fontDirListOrg = XGetFontPath(display, &numFonts);
-    char **fontDirListNew = new char*[numFonts+1];
-
-    bool found = false;
-    for (int i=0; i<numFonts; i++)
-    {
-        fontDirListNew[i] = fontDirListOrg[i];
-        if (strcmp(fontDirListOrg[i], fontFolder.c_str()) == 0) found = true;
-    }
-
-    if (!found)
-    {
-        char newDir[fontFolder.length()+1];
-        for (unsigned int i=0; i < fontFolder.length(); i++) newDir[i] = fontFolder[i];
-        newDir[fontFolder.length()] = 0;
-        fontDirListNew[numFonts] = newDir;
-        XSetFontPath(display, fontDirListNew, numFonts + 1);
-    }
-*/
+    XMapWindow(pDisplay, window);
 
     // Check sizable fonts and pick one
     int number;
-    char **listFonts = XListFonts(display, "*medium-r-normal--0-0-0-0*", 255, &number);
+    char **listFonts = XListFonts(pDisplay, "*medium-r-normal--0-0-0-0*", 255, &number);
 
-/*
-    #ifdef DEBUG
+    #ifdef FONTDEBUG
         printf("%s\r\n", "Fonts available:");
         for (int i=0; i<number; i++)
         {
             printf("%s\r\n", listFonts[i]);
         }
         printf("\r\n");
-    #endif // DEBUG
-*/
+    #endif // FONTDEBUG
 
     // Get scaled font
     std::string font = listFonts[0];
-    pFont = Utils::LoadQueryScalableFont(display, screen, listFonts[0], fontScale);
+    pFont = Utils::LoadQueryScalableFont(pDisplay, screen, listFonts[0], fontScale);
     if (!pFont) fontScale = 0;
 
     // Get font
@@ -127,7 +100,7 @@ void FiFoList::CreateWindow(Display *display, Window parentWindow)
 
         // Try original font
         std::string font = listFonts[0];
-        pFont = XLoadQueryFont(display, font.c_str());
+        pFont = XLoadQueryFont(pDisplay, font.c_str());
     }
 
     if (!pFont)
@@ -136,7 +109,7 @@ void FiFoList::CreateWindow(Display *display, Window parentWindow)
         message.append(font);
         Error::WriteLog("ERROR", "FiFoList::Attach", message.c_str());
         font = "9x15";
-        pFont = XLoadQueryFont (display, font.c_str());
+        pFont = XLoadQueryFont (pDisplay, font.c_str());
     }
 
     // If the font could not be loaded, revert to the "fixed" font
@@ -145,11 +118,11 @@ void FiFoList::CreateWindow(Display *display, Window parentWindow)
         std::string message = "using fixed font, unable to load font: ";
         message.append(font);
         Error::WriteLog("ERROR", "FiFoList::Attach", message.c_str());
-        pFont = XLoadQueryFont (display, "fixed");
+        pFont = XLoadQueryFont (pDisplay, "fixed");
     }
 
     // Set font
-    XSetFont (display, gc, pFont->fid);
+    XSetFont (pDisplay, gc, pFont->fid);
 
     // Set lineheight
     if (fontScale > 0) lineHeight = fontScale / 8; else lineHeight=15;
@@ -159,43 +132,7 @@ void FiFoList::CreateWindow(Display *display, Window parentWindow)
 }
 
 /*********************************************************************
-* File or Folder doubleclicked or pressed enter
-*********************************************************************/
-bool FiFoList::EnterSelectedFolder(void)
-{
-    bool succes = true;
-    std::list <std::string> :: iterator it;
-    std::string newFolder = *selectedFolder;
-
-    // Goto parent folder
-    if (newFolder == "..")
-    {
-        char *pStr = (char *) currentFolder.c_str();
-        char *pStrStart = pStr;
-        pStr += currentFolder.length() - 1;
-
-        if (*pStr == '/') *pStr=0x00;
-        while ((pStr != pStrStart) && (*pStr != '/')) pStr--;
-        *pStr = 0x00;
-
-        newFolder = "";
-        newFolder.append (pStrStart);
-        newFolder.append ("/");
-        currentFolder = newFolder;
-    } else if (newFolder != ".")
-    {
-        if (currentFolder[currentFolder.length() - 1] != '/') currentFolder += "/";
-        currentFolder += newFolder;
-    }
-
-    // Fill file list with entries from the selected folder
-    succes = this->Fill(currentFolder);
-
-    return (succes);
-}
-
-/*********************************************************************
-* Fill the liststore with directories (folder names and content count)
+* Fill the liststore
 *********************************************************************/
 bool FiFoList::Fill (std::string folder)
 {
@@ -270,63 +207,118 @@ bool FiFoList::Fill (std::string folder)
 }
 
 /*********************************************************************
-* Button pressed in file/folder list, so select entry
+* File or Folder doubleclicked or pressed enter
 *********************************************************************/
-void FiFoList::ButtonPressed(int mouseX, int mouseY)
+bool FiFoList::EnterSelectedFolder(void)
 {
-    int y = lineHeight;
-    int fileOffset = offset - foList.size();
-
-    if (fileOffset < 0)
-    {
-        std::list <std::string> :: iterator start = foList.begin();
-        for (int i=0; i < offset; i++) start++;
-
-        std::list <std::string> :: iterator it;
-        for(it = start; it != foList.end(); it++)
-        {
-            // Select different background color if selected entry
-            if ((mouseY > (y-5-lineHeight/2)) && mouseY < (y+5+lineHeight/2))
-            {
-                selectedFolder = it;
-                selectedFile   = fiList.end();
-                Paint();
-            }
-
-            y+=lineHeight;
-        }
-    }
-
-    std::list <std::string> :: iterator start = fiList.begin();
-    if (fileOffset > 0)
-    {
-        for (int i=0; i < fileOffset; i++) start++;
-    }
-
+    bool succes = true;
     std::list <std::string> :: iterator it;
-    for(it = start; it != fiList.end(); it++)
-    {
-        // Select different background color if selected entry
-        if ((mouseY > (y-5-lineHeight/2)) && mouseY < (y+5+lineHeight/2))
-        {
-            selectedFile   = it;
-            selectedFolder = foList.end();
-            Paint();
-        }
+    std::string newFolder = *selectedFolder;
 
-        y+=lineHeight;
+    // Goto parent folder
+    if (newFolder == "..")
+    {
+        char *pStr = (char *) currentFolder.c_str();
+        char *pStrStart = pStr;
+        pStr += currentFolder.length() - 1;
+
+        if (*pStr == '/') *pStr=0x00;
+        while ((pStr != pStrStart) && (*pStr != '/')) pStr--;
+        *pStr = 0x00;
+
+        newFolder = "";
+        newFolder.append (pStrStart);
+        newFolder.append ("/");
+        currentFolder = newFolder;
+    } else if (newFolder != ".")
+    {
+        if (currentFolder[currentFolder.length() - 1] != '/') currentFolder += "/";
+        currentFolder += newFolder;
     }
+
+    // Fill file list with entries from the selected folder
+    succes = this->Fill(currentFolder);
+
+    return (succes);
 }
 
 /*********************************************************************
-* Show file/folder entries in window
+* Scroll up
 *********************************************************************/
-void FiFoList::Paint()
+void FiFoList::ScrollUp(int n)
 {
-    // Clear all
-    XClearWindow(display, window);
+    for (int i=0; i<n; i++)
+    {
+        if (selectedFolder != foList.end())
+        {
+            // Scroll in folderlist
+            if (selectedFolder != foList.begin())
+            {
+                selectedFolder--;
+            }
+        } else
+        if (selectedFile != fiList.end())
+        {
+            // Scroll in filelist
+            if (selectedFile != fiList.begin())
+            {
+                selectedFile--;
+            } else
+            {
+                // Goto folderlist
+                selectedFile = fiList.end();
+                selectedFolder = foList.end();
+                selectedFolder--;
+            }
+        }
+    }
 
-    int x = 0;
+    CalculateOffset();
+    Paint();
+}
+
+/*********************************************************************
+* Scroll down
+*********************************************************************/
+void FiFoList::ScrollDown(int n)
+{
+    for (int i=0; i<n; i++)
+    {
+        if (selectedFolder != foList.end())
+        {
+            // Scroll in folderlist
+            selectedFolder++;
+            if (selectedFolder == foList.end())
+            {
+                if (fiList.size() > 0)
+                {
+                    selectedFile = fiList.begin();
+                } else
+                {
+                    selectedFolder--;
+                }
+            }
+        } else
+        if (selectedFile != fiList.end())
+        {
+            // Scroll in filelist
+            selectedFile++;
+            if (selectedFile == fiList.end())
+            {
+                selectedFile--;
+            }
+        }
+    }
+
+    CalculateOffset();
+    Paint();
+}
+
+/*********************************************************************
+* Calculate offset
+*********************************************************************/
+void FiFoList::CalculateOffset(void)
+{
     int y = 2 * lineHeight;
 
     // Calculate offset (folder selected)
@@ -369,6 +361,105 @@ void FiFoList::Paint()
             offset = 0;
         }
     }
+}
+
+/*********************************************************************
+* Button pressed in file/folder list, so select entry
+* (return value: scrollbar selected)
+*********************************************************************/
+bool FiFoList::ButtonPressed(int mouseX, int mouseY)
+{
+    // Check if clicked in scrollbar
+    if (mouseX > (width - 10))
+    {
+        int step = (foList.size() + fiList.size()) / 10;
+        if (step == 0) step = 1;
+        if (mouseY < posSlider) ScrollUp(step);
+        else ScrollDown(step);
+
+        return(true);
+    } else
+    {
+        int y = lineHeight;
+        int fileOffset = offset - foList.size();
+
+        if (fileOffset < 0)
+        {
+            std::list <std::string> :: iterator start = foList.begin();
+            for (int i=0; i < offset; i++) start++;
+
+            // Search selected folder entry
+            std::list <std::string> :: iterator it;
+            for(it = start; it != foList.end(); it++)
+            {
+                if ((mouseY > (y-5-lineHeight/2)) && mouseY < (y+5+lineHeight/2))
+                {
+                    selectedFolder = it;
+                    selectedFile   = fiList.end();
+                }
+
+                y+=lineHeight;
+            }
+        }
+
+        std::list <std::string> :: iterator start = fiList.begin();
+        if (fileOffset > 0)
+        {
+            for (int i=0; i < fileOffset; i++) start++;
+        }
+
+        // Search selected file entry
+        std::list <std::string> :: iterator it;
+        for(it = start; it != fiList.end(); it++)
+        {
+            if ((mouseY > (y-5-lineHeight/2)) && mouseY < (y+5+lineHeight/2))
+            {
+                selectedFile   = it;
+                selectedFolder = foList.end();
+            }
+
+            y+=lineHeight;
+        }
+    }
+
+    Paint();
+    return(false);
+}
+
+/*********************************************************************
+* Show file/folder entries in window
+*********************************************************************/
+void FiFoList::Paint()
+{
+    std::list <std::string> :: iterator it;
+    selectedItem = 0;
+
+    // Total number of items
+    int numberItems;
+
+    // Set total number of items
+    numberItems = foList.size() + fiList.size();
+
+    // Search selected folder entry
+    for(it = foList.begin(); (it != foList.end()) && (it != selectedFolder); it++)
+    {
+        selectedItem++;
+    }
+
+    // Search selected file entry
+    if (it == foList.end())
+    {
+        // Search selected file entry
+        for(it = fiList.begin(); (it != fiList.end()) && (it != selectedFile); it++)
+        {
+            selectedItem++;
+        }
+    }
+
+    // Clear all
+    XClearWindow(pDisplay, window);
+
+    int x = 0;
 
     y = lineHeight;
     int fileOffset = offset - foList.size();
@@ -384,16 +475,16 @@ void FiFoList::Paint()
             // Select different background color if selected entry
             if (it == selectedFolder)
             {
-                XSetForeground(display, gc, red.pixel);
-                XFillRectangle(display, window, gc, 0, y+5-lineHeight, width, lineHeight);
-                XSetForeground(display, gc, white.pixel);
+                XSetForeground(pDisplay, gc, red.pixel);
+                XFillRectangle(pDisplay, window, gc, 0, y+5-lineHeight, width-10, lineHeight);
+                XSetForeground(pDisplay, gc, white.pixel);
             } else
             {
-                XSetForeground(display, gc, black.pixel);
+                XSetForeground(pDisplay, gc, black.pixel);
             }
 
             std::string temp = *it;
-            XDrawString (display, window, gc, x, y, temp.c_str(), strlen(temp.c_str()));
+            XDrawString (pDisplay, window, gc, x, y, temp.c_str(), strlen(temp.c_str()));
 
             y+=lineHeight;
         }
@@ -405,28 +496,38 @@ void FiFoList::Paint()
         for (int i=0; i < fileOffset; i++) start++;
     }
 
-    std::list <std::string> :: iterator it;
     for(it = start; it != fiList.end(); it++)
     {
         // Select different background color if selected entry
         if (it == selectedFile)
         {
-            XSetForeground(display, gc, blue.pixel);
-            XFillRectangle(display, window, gc, 0, y+5-lineHeight, width, lineHeight);
-            XSetForeground(display, gc, white.pixel);
+            XSetForeground(pDisplay, gc, blue.pixel);
+            XFillRectangle(pDisplay, window, gc, 0, y+5-lineHeight, width-10, lineHeight);
+            XSetForeground(pDisplay, gc, white.pixel);
         } else
         {
-            XSetForeground(display, gc, blue.pixel);
+            XSetForeground(pDisplay, gc, blue.pixel);
         }
 
         std::string temp = *it;
-        XDrawString (display, window, gc, x, y, temp.c_str(), strlen(temp.c_str()));
+        XDrawString (pDisplay, window, gc, x, y, temp.c_str(), strlen(temp.c_str()));
 
         y+=lineHeight;
     }
 
+    // Draw scrollbar
+    XSetForeground(pDisplay, gc, black.pixel);
+    XDrawLine(pDisplay, window, gc, width - 10, 0, width -10, height);
+
+    // Draw marker in scrollbar
+    XSetForeground(pDisplay, gc, red.pixel);
+    posSlider = (selectedItem + 0.5) * height / numberItems;
+    XFillRectangle(pDisplay, window, gc, width - 9, posSlider-4, width -1, 4);
+    XSetForeground(pDisplay, gc, blue.pixel);
+    XFillRectangle(pDisplay, window, gc, width - 9, posSlider, width -1, 4);
+
     // Flush all pending requests to the X server
-    XFlush(display);
+    XFlush(pDisplay);
 }
 
 /*********************************************************************
@@ -437,10 +538,12 @@ void FiFoList::SetSize (int width, int height)
     if (width  == 0) width =this->width;
     if (height == 0) height=this->height;
 
-    XResizeWindow(display, window, width, height);
+    XResizeWindow(pDisplay, window, width, height);
 
     this->width  = width;
     this->height = height;
+
+    Paint();
 }
 
 /*********************************************************************
@@ -448,10 +551,12 @@ void FiFoList::SetSize (int width, int height)
 *********************************************************************/
 void FiFoList::SetPosition (int x, int y)
 {
-    XMoveWindow(display, window, width, height);
+    XMoveWindow(pDisplay, window, width, height);
 
     this->x = x;
     this->y = y;
+
+    Paint();
 }
 
 /*********************************************************************

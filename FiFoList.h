@@ -12,6 +12,8 @@
 #include "Error.h"
 #include "Utils.h"
 
+#undef FONTDEBUG
+
 class FiFoList
 {
     public:
@@ -61,11 +63,17 @@ class FiFoList
         // Fill the list with files and folders
         bool Fill (std::string folder);
 
-        // Button pressed in filelist, so select entry
-        void ButtonPressed(int mouseX, int mouseY);
+        // Button pressed in filelist, so select entry (return value: scrollbar selected)
+        bool ButtonPressed(int mouseX, int mouseY);
 
         // Folder doubleclicked or pressed enter
         bool EnterSelectedFolder(void);
+
+        // Scroll up
+        void ScrollUp(int n);
+
+        // Scroll down
+        void ScrollDown(int n);
 
         // Paint file/folder entries in window
         void Paint();
@@ -81,7 +89,7 @@ class FiFoList
     private:
 
         // Display handle
-        Display* display;
+        Display* pDisplay;
 
         // Parent window
         Window parentWindow;
@@ -98,9 +106,18 @@ class FiFoList
         // Lineheight (depending on fontsize used)
         int lineHeight;
 
+        // Selected item (nummerical)
+        int selectedItem;
+
         // Offset in displaying entries
         int offset;
 
+        // Position of scrollbar slider
+        int posSlider;
+
         // Test if file is an image
         bool IsImage (std::string imageName);
+
+        // Calculate offset
+        void CalculateOffset(void);
 };
