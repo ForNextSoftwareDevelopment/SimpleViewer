@@ -1,4 +1,3 @@
-#pragma once
 #include "Main.h"
 
 int main(int argc, char* argv[])
@@ -255,6 +254,8 @@ int main(int argc, char* argv[])
         XEvent event;
         XNextEvent(pDisplay, &event);
         std::string img;
+        std::string iFile;
+        std::string selectedFolder;
         bool scrollBarSelected;
 
         switch (event.type)
@@ -377,11 +378,12 @@ int main(int argc, char* argv[])
                     }
 
                     // Load image
-                    if (pFileList->selectedFile != pFileList->fiList.end())
+                    iFile = pFileList->GetSelectedFile();
+                    if (iFile != "")
                     {
                         img = pFileList->currentFolder;
                         img.append("/");
-                        img.append(*pFileList->selectedFile);
+                        img.append(iFile);
                         pDrawing->LoadImage(img);
                     }
                 }
@@ -420,19 +422,13 @@ int main(int argc, char* argv[])
                     }
 
                     // Fill filelist with entries from the selected folder
-                    if ((*pFolderList->selectedFolder != ".") && (*pFolderList->selectedFolder != ".."))
+                    selectedFolder = pFolderList->GetSelectedFolder();
+                    if ((selectedFolder != "") && (selectedFolder != ".") && (selectedFolder != ".."))
                     {
                         newFolder = pFolderList->currentFolder;
                         if (newFolder[newFolder.length() - 1] != '/') newFolder += "/";
-                        newFolder.append(*pFolderList->selectedFolder);
+                        newFolder.append(selectedFolder);
                         fileListFill = pFileList->Fill(newFolder);
-
-                        // Set selected file to first image in filelist (if present)
-                        if (pFileList->fiList.size() > 0)
-                        {
-                            pFileList->selectedFolder = pFileList->foList.end();
-                            pFileList->selectedFile = pFileList->fiList.begin();
-                        }
 
                         // Redraw filelist
                         pFileList->Paint();
@@ -456,22 +452,22 @@ int main(int argc, char* argv[])
                                 if (timeSpan.count() < 0.3)
                                 {
                                     // Check if this is a folder
-                                    if (pFileList->selectedFolder != pFileList->foList.end())
+                                    if (pFileList->GetSelectedFolder() != "")
                                     {
                                         fileListFill = pFileList->EnterSelectedFolder();
                                     }
 
-                                    // Check if this is an image file
-                                    if (pFileList->selectedFile != pFileList->fiList.end())
+                                    // Load image
+                                    iFile = pFileList->GetSelectedFile();
+                                    if (iFile != "")
                                     {
                                         // Show full screen drawing
                                         FullScreen();
 
-                                        // Load image
                                         img = pFileList->currentFolder;
                                         img.append("/");
-                                        img.append(*pFileList->selectedFile);
-                                        pDrawing->LoadImage(img.c_str());
+                                        img.append(iFile);
+                                        pDrawing->LoadImage(img);
                                         pDrawing->Attach();
                                         pDrawing->Paint();
                                     }
@@ -503,11 +499,12 @@ int main(int argc, char* argv[])
                 XStoreName(pDisplay, mainWindow, current.c_str());
 
                 // Load preview image
-                if (pFileList->selectedFile != pFileList->fiList.end())
+                iFile = pFileList->GetSelectedFile();
+                if (iFile != "")
                 {
                     img = pFileList->currentFolder;
                     img.append("/");
-                    img.append(*pFileList->selectedFile);
+                    img.append(iFile);
                     pPrevDrawing->LoadImage(img);
                 }
                 break;
@@ -591,11 +588,12 @@ int main(int argc, char* argv[])
                     }
 
                     // Load image
-                    if (pFileList->selectedFile != pFileList->fiList.end())
+                    iFile = pFileList->GetSelectedFile();
+                    if (iFile != "")
                     {
                         img = pFileList->currentFolder;
                         img.append("/");
-                        img.append(*pFileList->selectedFile);
+                        img.append(iFile);
                         pDrawing->LoadImage(img);
                     }
                 }
@@ -631,20 +629,14 @@ int main(int argc, char* argv[])
                             break;
                     }
 
-                    if ((*pFolderList->selectedFolder != ".") && (*pFolderList->selectedFolder != ".."))
+                    // Fill filelist with entries from the selected folder
+                    selectedFolder = pFolderList->GetSelectedFolder();
+                    if ((selectedFolder != "") && (selectedFolder != ".") && (selectedFolder != ".."))
                     {
                         newFolder = pFolderList->currentFolder;
                         if (newFolder[newFolder.length() - 1] != '/') newFolder += "/";
-                        newFolder.append(*pFolderList->selectedFolder);
+                        newFolder.append(selectedFolder);
                         fileListFill = pFileList->Fill(newFolder);
-                        pPrevDrawing->Clear();
-
-                        // Select first image in filelist (if present)
-                        if (pFileList->fiList.size() > 0)
-                        {
-                            pFileList->selectedFolder = pFileList->foList.end();
-                            pFileList->selectedFile = pFileList->fiList.begin();
-                        }
 
                         // Redraw filelist
                         pFileList->Paint();
@@ -657,27 +649,27 @@ int main(int argc, char* argv[])
                     // Clear the preview drawing
                     pPrevDrawing->Clear();
 
-                    std::string img;
                     switch (event.xkey.keycode)
                     {
                         // Enter
                         case 36:
                             // Check if this is a folder
-                            if (pFileList->selectedFolder != pFileList->foList.end())
+                            if (pFileList->GetSelectedFolder() != "")
                             {
                                 fileListFill = pFileList->EnterSelectedFolder();
                             }
 
                             // Check if this is an image file
-                            if (pFileList->selectedFile != pFileList->fiList.end())
+                            iFile = pFileList->GetSelectedFile();
+                            if (iFile != "")
                             {
                                 // Show full screen drawing
                                 FullScreen();
 
                                 img = pFileList->currentFolder;
                                 img.append("/");
-                                img.append(*pFileList->selectedFile);
-                                pDrawing->LoadImage(img.c_str());
+                                img.append(iFile);
+                                pDrawing->LoadImage(img);
                                 pDrawing->Attach();
                                 pDrawing->Paint();
                             }
@@ -717,11 +709,12 @@ int main(int argc, char* argv[])
                 XStoreName(pDisplay, mainWindow, current.c_str());
 
                 // Load preview image
-                if (pFileList->selectedFile != pFileList->fiList.end())
+                iFile = pFileList->GetSelectedFile();
+                if (iFile != "")
                 {
                     img = pFileList->currentFolder;
                     img.append("/");
-                    img.append(*pFileList->selectedFile);
+                    img.append(iFile);
                     pPrevDrawing->LoadImage(img);
                 }
 

@@ -14,6 +14,19 @@
 
 #undef FONTDEBUG
 
+enum FTYPE
+{
+    FFILE = 0,
+    FFOLDER
+};
+
+struct FiFo
+{
+    std::string name;
+    FTYPE       type;
+    int         size;
+};
+
 class FiFoList
 {
     public:
@@ -28,28 +41,12 @@ class FiFoList
         XColor grey;
         XColor black;
 
-        // List with file names
-        std::list<std::string> fiList;
-
-        // List with folder names
-        std::list<std::string> foList;
-
         // Current Folder to display
         std::string currentFolder;
-
-        // Selected item in the list
-        std::list <std::string> :: iterator selectedFile;
-        std::list <std::string> :: iterator selectedFolder;
 
         // Show files/folders or both
         bool showFiles;
         bool showFolders;
-
-        // Coordinates of the start of the control
-        int x, y;
-
-        // Size of the control
-        int width, height;
 
         // Constructor
         FiFoList(int x, int y, int width, int height, int fontScale, std::string folder);
@@ -69,14 +66,17 @@ class FiFoList
         // Folder doubleclicked or pressed enter
         bool EnterSelectedFolder(void);
 
+        // Get selected folder
+        std::string GetSelectedFolder(void);
+
+        // Get selected file
+        std::string GetSelectedFile(void);
+
         // Scroll up
         void ScrollUp(int n);
 
         // Scroll down
         void ScrollDown(int n);
-
-        // Paint file/folder entries in window
-        void Paint();
 
         // Resize window
         void SetSize (int width, int height);
@@ -84,7 +84,40 @@ class FiFoList
         // Position window
         void SetPosition (int x, int y);
 
+        // Paint file/folder entries in window
+        void Paint();
+
     protected:
+
+        // List with file/folder names
+        std::list<FiFo> fifoList;
+
+        // Selected item in the list
+        std::list<FiFo>::iterator selectedFiFo;
+
+        // Coordinates of the start of the control
+        int x, y;
+
+        // Size of the control
+        int width, height;
+
+        // Lineheight (depending on fontsize used)
+        int lineHeight;
+
+        // Offset in displaying entries
+        int offset;
+
+        // Position of scrollbar slider
+        int posSlider;
+
+        // Calculate offset
+        void CalculateOffset(void);
+
+        // Test if file is an image
+        bool IsImage (std::string imageName);
+
+        // Sort list
+        void Sort(void);
 
     private:
 
@@ -102,22 +135,4 @@ class FiFoList
 
         // Using scaled font
         unsigned short fontScale;
-
-        // Lineheight (depending on fontsize used)
-        int lineHeight;
-
-        // Selected item (nummerical)
-        int selectedItem;
-
-        // Offset in displaying entries
-        int offset;
-
-        // Position of scrollbar slider
-        int posSlider;
-
-        // Test if file is an image
-        bool IsImage (std::string imageName);
-
-        // Calculate offset
-        void CalculateOffset(void);
 };
