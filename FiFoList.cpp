@@ -536,6 +536,8 @@ void FiFoList::SetSize (int width, int height)
     this->width  = width;
     this->height = height;
 
+    CalculateOffset();
+
     Paint();
 }
 
