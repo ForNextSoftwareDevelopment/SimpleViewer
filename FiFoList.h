@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include <sys/stat.h>
 #include <iterator>
 #include <list>
 
@@ -24,7 +25,7 @@ struct FiFo
 {
     std::string name;
     FTYPE       type;
-    int         size;
+    int         bytes;
 };
 
 class FiFoList
@@ -34,15 +35,11 @@ class FiFoList
         // Window handle
         Window window;
 
-        // Standard colors to use
-        XColor white;
-        XColor blue;
-        XColor red;
-        XColor grey;
-        XColor black;
-
-        // Current Folder to display
+        // Current folder to display
         std::string currentFolder;
+
+        // Coming from folder
+        std::string comingFrom;
 
         // Show files/folders or both
         bool showFiles;
@@ -65,6 +62,9 @@ class FiFoList
 
         // Folder doubleclicked or pressed enter
         bool EnterSelectedFolder(void);
+
+        // Go to the parent folder
+        bool EnterParentFolder(void);
 
         // Get selected folder
         std::string GetSelectedFolder(void);
@@ -92,7 +92,7 @@ class FiFoList
         // List with file/folder names
         std::list<FiFo> fifoList;
 
-        // Selected item in the list
+        // Selected file or folder in the list
         std::list<FiFo>::iterator selectedFiFo;
 
         // Coordinates of the start of the control
@@ -120,6 +120,13 @@ class FiFoList
         void Sort(void);
 
     private:
+
+        // Standard colors to use
+        XColor white;
+        XColor blue;
+        XColor red;
+        XColor grey;
+        XColor black;
 
         // Display handle
         Display* pDisplay;

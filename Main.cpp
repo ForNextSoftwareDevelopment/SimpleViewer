@@ -393,6 +393,7 @@ int main(int argc, char* argv[])
                 {
                     switch (event.xbutton.button)
                     {
+                        // left click
                         case 1:
                             // Calculate selected file/folder
                             scrollBarSelected = pFolderList->ButtonPressed(event.xbutton.x, event.xbutton.y);
@@ -408,6 +409,11 @@ int main(int argc, char* argv[])
                                     pFolderList->EnterSelectedFolder();
                                 }
                             }
+                            break;
+
+                        // Right click
+                        case 3:
+                            pFolderList->EnterParentFolder();
                             break;
 
                         // Scroll up
@@ -440,6 +446,7 @@ int main(int argc, char* argv[])
                 {
                     switch (event.xbutton.button)
                     {
+                        // Left click
                         case 1:
                             // Calculate selected file/folder
                             scrollBarSelected = pFileList->ButtonPressed(event.xbutton.x, event.xbutton.y);
@@ -473,6 +480,11 @@ int main(int argc, char* argv[])
                                     }
                                 }
                             }
+                            break;
+
+                        // Right click
+                        case 3:
+                            pFileList->EnterParentFolder();
                             break;
 
                         // Scroll up
@@ -603,6 +615,11 @@ int main(int argc, char* argv[])
                 {
                     switch (event.xkey.keycode)
                     {
+                        // backspace
+                        case 22:
+                            pFolderList->EnterParentFolder();
+                            break;
+
                         // Enter
                         case 36:
                             pFolderList->EnterSelectedFolder();
@@ -651,6 +668,11 @@ int main(int argc, char* argv[])
 
                     switch (event.xkey.keycode)
                     {
+                        // backspace
+                        case 22:
+                            pFileList->EnterParentFolder();
+                            break;
+
                         // Enter
                         case 36:
                             // Check if this is a folder

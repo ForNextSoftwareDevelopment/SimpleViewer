@@ -12,6 +12,7 @@ FiFoList::FiFoList(int x, int y, int width, int height, int fontScale, std::stri
     this->fontScale       = fontScale;
     this->currentFolder   = folder;
     this->selectedFiFo    = fifoList.end();
+    this->comingFrom      = "";
     this->showFiles       = true;
     this->showFolders     = true;
     this->offset          = 0;
@@ -179,7 +180,16 @@ bool FiFoList::Fill (std::string folder)
                     // Check if this is an image
                     if (IsImage(dirp->d_name))
                     {
-                        FiFo fifo = {dirp->d_name, FTYPE::FFILE, dirp->d_reclen};
+                        // Check filesize
+                        struct stat st;
+                        int bytes = 0;
+                        std::string imgName = currentFolder;
+                        if (imgName[imgName.size()-1] != '/')  imgName.append("/");
+                        imgName.append(dirp->d_name);
+                        if (stat(imgName.c_str(), &st) == 0) bytes = st.st_size;
+
+                        // New entry
+                        FiFo fifo = {dirp->d_name, FTYPE::FFILE, bytes};
                         fifoList.push_back(fifo);
                     }
                 }
@@ -200,8 +210,15 @@ bool FiFoList::Fill (std::string folder)
     // Sort the list alphabettically
     Sort();
 
-    // Set selected to start of fifoList
+    // Set selected to the first entry
     selectedFiFo = fifoList.begin();
+
+    // Check if comingFrom entry is valid, if so -> select
+    std::list<FiFo>::iterator it;
+    for(it = fifoList.begin(); it != fifoList.end(); it++)
+    {
+        if (((*it).name == comingFrom) && ((*it).type == FTYPE::FFOLDER)) selectedFiFo = it;
+    }
 
     // Show in window
     Paint();
@@ -292,6 +309,45 @@ void FiFoList::Sort(void)
 }
 
 /*********************************************************************
+* Button pressed in file/folder list, so select entry
+* (return value: scrollbar selected)
+*********************************************************************/
+bool FiFoList::ButtonPressed(int mouseX, int mouseY)
+{
+    // Check if clicked in scrollbar
+    if (mouseX > (width - 10))
+    {
+        int step = fifoList.size() / 10;
+        if (step == 0) step = 1;
+        if (mouseY < posSlider) ScrollUp(step);
+        else ScrollDown(step);
+
+        return(true);
+    } else
+    {
+        int yText = lineHeight;
+
+        std::list<FiFo>::iterator start = fifoList.begin();
+        for (int i=0; i < offset; i++) start++;
+
+        // Search selected entry
+        std::list<FiFo>::iterator it;
+        for(it = start; it != fifoList.end(); it++)
+        {
+            if ((mouseY > (yText-5-lineHeight/2)) && mouseY < (yText+5+lineHeight/2))
+            {
+                selectedFiFo = it;
+            }
+
+            yText+=lineHeight;
+        }
+    }
+
+    Paint();
+    return(false);
+}
+
+/*********************************************************************
 * Folder doubleclicked or pressed enter
 *********************************************************************/
 bool FiFoList::EnterSelectedFolder(void)
@@ -311,6 +367,12 @@ bool FiFoList::EnterSelectedFolder(void)
 
         if (*pStr == '/') *pStr=0x00;
         while ((pStr != pStrStart) && (*pStr != '/')) pStr--;
+
+        // Set folder from which we came
+        comingFrom = "";
+        comingFrom.append(pStr+1);
+
+        // Set string endmarker
         *pStr = 0x00;
 
         newFolder = "";
@@ -319,9 +381,45 @@ bool FiFoList::EnterSelectedFolder(void)
         currentFolder = newFolder;
     } else if (newFolder != ".")
     {
+        // Set folder from which we came
+        comingFrom = newFolder;
+
         if (currentFolder[currentFolder.length() - 1] != '/') currentFolder += "/";
         currentFolder += newFolder;
     }
+
+    // Fill file list with entries from the selected folder
+    succes = this->Fill(currentFolder);
+
+    return (succes);
+}
+
+/*********************************************************************
+* Enter the parent folder
+*********************************************************************/
+bool FiFoList::EnterParentFolder(void)
+{
+    std::string newFolder = "..";
+    bool succes = true;
+
+    char *pStr = (char *) currentFolder.c_str();
+    char *pStrStart = pStr;
+    pStr += currentFolder.length() - 1;
+
+    if (*pStr == '/') *pStr=0x00;
+    while ((pStr != pStrStart) && (*pStr != '/')) pStr--;
+
+    // Set folder from which we came
+    comingFrom = "";
+    comingFrom.append(pStr+1);
+
+    // Set string endmarker
+    *pStr = 0x00;
+
+    newFolder = "";
+    newFolder.append (pStrStart);
+    newFolder.append ("/");
+    currentFolder = newFolder;
 
     // Fill file list with entries from the selected folder
     succes = this->Fill(currentFolder);
@@ -417,45 +515,6 @@ void FiFoList::CalculateOffset(void)
 }
 
 /*********************************************************************
-* Button pressed in file/folder list, so select entry
-* (return value: scrollbar selected)
-*********************************************************************/
-bool FiFoList::ButtonPressed(int mouseX, int mouseY)
-{
-    // Check if clicked in scrollbar
-    if (mouseX > (width - 10))
-    {
-        int step = fifoList.size() / 10;
-        if (step == 0) step = 1;
-        if (mouseY < posSlider) ScrollUp(step);
-        else ScrollDown(step);
-
-        return(true);
-    } else
-    {
-        int yText = lineHeight;
-
-        std::list<FiFo>::iterator start = fifoList.begin();
-        for (int i=0; i < offset; i++) start++;
-
-        // Search selected entry
-        std::list<FiFo>::iterator it;
-        for(it = start; it != fifoList.end(); it++)
-        {
-            if ((mouseY > (yText-5-lineHeight/2)) && mouseY < (yText+5+lineHeight/2))
-            {
-                selectedFiFo = it;
-            }
-
-            yText+=lineHeight;
-        }
-    }
-
-    Paint();
-    return(false);
-}
-
-/*********************************************************************
 * Show file/folder entries in window
 *********************************************************************/
 void FiFoList::Paint()
@@ -467,10 +526,18 @@ void FiFoList::Paint()
     std::list<FiFo>::iterator start = fifoList.begin();
     for (int i=0; i<offset; i++) start++;
 
-    // Paint all text entries
+    // Check max filename size
+    unsigned int maxFileNameSize = 0;
+    std::list<FiFo>::iterator it;
+    for(it = fifoList.begin(); it != fifoList.end(); it++)
+    {
+        if ((*it).name.size() > maxFileNameSize) maxFileNameSize = (*it).name.size();
+    }
+    int xSize = maxFileNameSize * fontScale / 10;
+
+    // Paint all file names and sizes
     int xText = 0;
     int yText = lineHeight;
-    std::list<FiFo>::iterator it;
     for(it = start; it != fifoList.end(); it++)
     {
         // Select different background color if selected entry is a folder
@@ -497,13 +564,24 @@ void FiFoList::Paint()
             }
         }
 
+        // Name
         XDrawString (pDisplay, window, gc, xText, yText, (*it).name.c_str(), strlen((*it).name.c_str()));
+
+        // Size
+        if ((*it).type == FTYPE::FFILE)
+        {
+            std::string strSize = Utils::IntToStr((*it).bytes);
+            XDrawString (pDisplay, window, gc, xSize, yText, strSize.c_str(), strlen(strSize.c_str()));
+        }
+
         yText+=lineHeight;
     }
 
     // Draw scrollbar
     XSetForeground(pDisplay, gc, black.pixel);
     XDrawLine(pDisplay, window, gc, width - 10, 0, width -10, height);
+    XSetForeground(pDisplay, gc, white.pixel);
+    XFillRectangle(pDisplay, window, gc, width - 9, 0, 9, height);
 
     // Search selected entry (nummerical value)
     int selectedItem = 0;
