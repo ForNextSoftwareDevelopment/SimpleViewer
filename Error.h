@@ -3,7 +3,7 @@
 #include <vector>
 #include <cstdio>
 
-#undef DEBUG
+#define DEBUG
 
 namespace Error
 {

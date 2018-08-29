@@ -12,7 +12,7 @@ FiFoList::FiFoList(int x, int y, int width, int height, int fontScale, std::stri
     this->fontScale       = fontScale;
     this->currentFolder   = folder;
     this->selectedFiFo    = fifoList.end();
-    this->comingFrom      = "";
+    this->toBeSelected    = "";
     this->showFiles       = true;
     this->showFolders     = true;
     this->offset          = 0;
@@ -49,10 +49,10 @@ void FiFoList::CreateWindow(Display *pDisplay, Window parentWindow)
     // Initialize window attributes
     XSetWindowAttributes attrs;
 
-    // handle mouse button
+    // Set event masks
     attrs.event_mask = ButtonPressMask | KeyPressMask;
 
-    // Do not hide any events from child window
+    // Do not hide events from child window
     attrs.do_not_propagate_mask = 0;
 
     // Background color
@@ -213,11 +213,11 @@ bool FiFoList::Fill (std::string folder)
     // Set selected to the first entry
     selectedFiFo = fifoList.begin();
 
-    // Check if comingFrom entry is valid, if so -> select
+    // Check if toBeSelected entry is valid, if so -> select
     std::list<FiFo>::iterator it;
     for(it = fifoList.begin(); it != fifoList.end(); it++)
     {
-        if (((*it).name == comingFrom) && ((*it).type == FTYPE::FFOLDER)) selectedFiFo = it;
+        if ((*it).name == toBeSelected) selectedFiFo = it;
     }
 
     // Show in window
@@ -369,8 +369,8 @@ bool FiFoList::EnterSelectedFolder(void)
         while ((pStr != pStrStart) && (*pStr != '/')) pStr--;
 
         // Set folder from which we came
-        comingFrom = "";
-        comingFrom.append(pStr+1);
+        toBeSelected = "";
+        toBeSelected.append(pStr+1);
 
         // Set string endmarker
         *pStr = 0x00;
@@ -381,11 +381,10 @@ bool FiFoList::EnterSelectedFolder(void)
         currentFolder = newFolder;
     } else if (newFolder != ".")
     {
-        // Set folder from which we came
-        comingFrom = newFolder;
-
         if (currentFolder[currentFolder.length() - 1] != '/') currentFolder += "/";
         currentFolder += newFolder;
+
+        toBeSelected = "";
     }
 
     // Fill file list with entries from the selected folder
@@ -399,7 +398,6 @@ bool FiFoList::EnterSelectedFolder(void)
 *********************************************************************/
 bool FiFoList::EnterParentFolder(void)
 {
-    std::string newFolder = "..";
     bool succes = true;
 
     char *pStr = (char *) currentFolder.c_str();
@@ -410,13 +408,13 @@ bool FiFoList::EnterParentFolder(void)
     while ((pStr != pStrStart) && (*pStr != '/')) pStr--;
 
     // Set folder from which we came
-    comingFrom = "";
-    comingFrom.append(pStr+1);
+    toBeSelected = "";
+    toBeSelected.append(pStr+1);
 
     // Set string endmarker
     *pStr = 0x00;
 
-    newFolder = "";
+    std::string newFolder = "";
     newFolder.append (pStrStart);
     newFolder.append ("/");
     currentFolder = newFolder;
@@ -615,8 +613,6 @@ void FiFoList::SetSize (int width, int height)
     this->height = height;
 
     CalculateOffset();
-
-    Paint();
 }
 
 /*********************************************************************
@@ -628,8 +624,6 @@ void FiFoList::SetPosition (int x, int y)
 
     this->x = x;
     this->y = y;
-
-    Paint();
 }
 
 /*********************************************************************

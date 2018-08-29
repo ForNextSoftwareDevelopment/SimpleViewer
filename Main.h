@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <pwd.h>
 #include <chrono>
+#include <thread>
 
 #include "Error.h"
 #include "Files.h"
@@ -20,7 +21,7 @@
 #define VOFFSET     6
 #define HOFFSET     6
 
-#undef EVENTDEBUG
+#define EVENTDEBUG
 
 static const char *event_names[] = {
    "",
@@ -63,6 +64,7 @@ static const char *event_names[] = {
 // main display and window
 Display* pDisplay;
 Window mainWindow;
+bool mapped;
 int curScreenX, curScreenY;
 unsigned int curScreenWidth, curScreenHeight;
 int oldScreenX, oldScreenY;

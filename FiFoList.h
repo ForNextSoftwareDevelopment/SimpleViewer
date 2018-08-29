@@ -38,8 +38,8 @@ class FiFoList
         // Current folder to display
         std::string currentFolder;
 
-        // Coming from folder
-        std::string comingFrom;
+        // Entry to be selected on Fill
+        std::string toBeSelected;
 
         // Show files/folders or both
         bool showFiles;

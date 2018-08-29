@@ -44,10 +44,10 @@ void Drawing::CreateWindow(Display *display, Window parentWindow)
     // Initialize window attributes
     XSetWindowAttributes attrs;
 
-    // handle mouse button
+    // Set event masks
     attrs.event_mask = ButtonPressMask | KeyPressMask;
 
-    // Do not hide any events from child window
+    // Do not hide events from child window
     attrs.do_not_propagate_mask = 0;
 
     // Background color
@@ -106,8 +106,6 @@ void Drawing::SetSize (unsigned int width, unsigned int height)
 
     this->width  = width;
     this->height = height;
-
-    Paint();
 }
 
 /*********************************************************************
@@ -119,8 +117,6 @@ void Drawing::SetPosition (unsigned int x, unsigned int y)
 
     this->x = x;
     this->y = y;
-
-    Paint();
 }
 
 

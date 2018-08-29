@@ -70,6 +70,7 @@ int main(int argc, char* argv[])
     int fontScaleFi = 160;
     int fontScaleFo = 160;
     std::string startFolder = "/";
+    std::string toBeSelected = "";
     std::string iniFile = Error::GetLogFilePath();
     iniFile.append("/simpleviewer.ini");
     char *pSettings = Files::ReadFile(iniFile);
@@ -158,6 +159,30 @@ int main(int argc, char* argv[])
         Error::WriteLog("ERROR", "Main", "Can't read preferences file");
     }
 
+    // Check for picturename in arguments
+    std::string startPic = "";
+    if (argc > 1)
+    {
+        startPic = argv[1];
+
+        // Adjust startfolder
+        std::string temp = "";
+        temp.append(startPic.c_str());
+        char *pStr = (char *) temp.c_str();
+        char *pStrStart = pStr;
+        pStr += temp.length() - 1;
+
+        while ((pStr != pStrStart) && (*pStr != '/')) pStr--;
+        *pStr=0x00;
+
+        startFolder = "";
+        startFolder.append(pStrStart);
+
+        // Set toBeSelected entry
+        toBeSelected = "";
+        toBeSelected.append(pStr+1);
+    }
+
     pDisplay = XOpenDisplay(NULL);
     if (pDisplay == NULL)
     {
@@ -188,29 +213,22 @@ int main(int argc, char* argv[])
     // Initialize window attributes
     XSetWindowAttributes attrs;
 
-    attrs.event_mask
-        = SubstructureRedirectMask // handle child window requests
-        | StructureNotifyMask      // handle container notifications
-        | ExposureMask             // handle container redraw
-        | PropertyChangeMask;      // Handle changed properties
+    // Set event masks
+    attrs.event_mask = StructureNotifyMask | ExposureMask | PropertyChangeMask;
 
-    // Do not hide any events from child window
+    // Do not hide events from child window
     attrs.do_not_propagate_mask = 0;
 
     // Background color
     attrs.background_pixel = white.pixel;
 
-    unsigned long attrs_mask = CWEventMask | CWBackPixel;
+    unsigned long attrs_mask =  CWEventMask | CWBackPixel;
 
     // Create and map container window
     Screen *pScreen = ScreenOfDisplay(pDisplay, 0);
-    mainWindow = XCreateWindow(pDisplay, RootWindow(pDisplay, screen), 0, 0, pScreen->width, pScreen->height, 0, CopyFromParent, InputOutput, CopyFromParent, attrs_mask, &attrs);
-
-    // Maximize screen
-    MaximizedScreen();
-
-    // Make window visible
-    XMapWindow(pDisplay, mainWindow);
+    curScreenWidth = pScreen->width;
+    curScreenHeight = pScreen->height;
+    mainWindow = XCreateWindow(pDisplay, RootWindow(pDisplay, screen), 0, 0, curScreenWidth, curScreenHeight, 0, CopyFromParent, InputOutput, CopyFromParent, attrs_mask, &attrs);
 
     // Get WM_DELETE_WINDOW atom
     Atom wm_delete = XInternAtom(pDisplay, "WM_DELETE_WINDOW", True);
@@ -224,28 +242,48 @@ int main(int argc, char* argv[])
     pFolderList->showFiles = false;
     pFolderList->CreateWindow(pDisplay, mainWindow);
 
-    // Create preview drawing control
-    std::string pic = Error::GetLogFilePath();
-    pic.append("/simpleviewer.jpg");
-    Drawing *pPrevDrawing = new Drawing(HOFFSET-4, pScreen->height - prevHeight + VOFFSET-4, prevWidth, prevHeight - VOFFSET);
-    pPrevDrawing->CreateWindow(pDisplay, mainWindow);
-    pPrevDrawing->LoadImage(pic.c_str());
-
     // Create fifolist control (for files and folders to the right side
     FiFoList *pFileList = new FiFoList(prevWidth + 6, 0, pScreen->width - prevWidth - 6 - HOFFSET, pScreen->height - VOFFSET, fontScaleFi, startFolder);
     pFileList->showFolders = true;
     pFileList->showFiles = true;
     pFileList->CreateWindow(pDisplay, mainWindow);
 
-    // Show current folder to be displayed in fileList
+    // If image provided in arguments, then adjust tobeselected in filelist control
+    if (argc > 1)
+    {
+        pFileList->toBeSelected = toBeSelected;
+        pFileList->Fill(startFolder);
+    }
+
+    // Create preview drawing control
+    if (startPic == "")
+    {
+        startPic = Error::GetLogFilePath();
+        startPic.append("/simpleviewer.jpg");
+    }
+    Drawing *pPrevDrawing = new Drawing(HOFFSET-4, pScreen->height - prevHeight + VOFFSET-4, prevWidth, prevHeight - VOFFSET);
+    pPrevDrawing->CreateWindow(pDisplay, mainWindow);
+    pPrevDrawing->LoadImage(startPic.c_str());
+
+    // Show current folder to be displayed
     current = "SimpleViewer: ";
     current.append(pFileList->currentFolder);
     XStoreName(pDisplay, mainWindow, current.c_str());
 
-    // Create full drawing window, but do not attach it
+    // Create full drawing window
     Drawing *pDrawing = new Drawing(0, 0, pScreen->width, pScreen->height);
     pDrawing->CreateWindow(pDisplay, mainWindow);
-    pDrawing->Detach();
+
+    // Map main window
+    XMapWindow(pDisplay, mainWindow);
+
+    // If image provided in arguments, then show full-size
+    if (argc > 1)
+    {
+        pDrawing->LoadImage(startPic.c_str());
+        FullScreen();
+        pDrawing->Paint();
+    }
 
     // Window event loop
     bool exit = false;
@@ -260,9 +298,9 @@ int main(int argc, char* argv[])
 
         switch (event.type)
         {
-            case CreateNotify:
+            case Expose:
                 #ifdef EVENTDEBUG
-                    message = "Window CreateNotify Event: ";
+                    message = "Window Expose Event: ";
                     if (event.xexpose.window == mainWindow) message.append("Main window\r\n"); else
                     if (event.xexpose.window == pFolderList->window) message.append("Folderlist window\r\n"); else
                     if (event.xexpose.window == pFileList->window) message.append("Filelist window\r\n"); else
@@ -273,21 +311,21 @@ int main(int argc, char* argv[])
                     }
                     Error::WriteLog("INFO", "Main", message.c_str());
                 #endif // EVENTDEBUG
-                break;
 
-            case PropertyNotify:
-                #ifdef EVENTDEBUG
-                    message = "Window PropertyNotify Event: ";
-                    if (event.xexpose.window == mainWindow) message.append("Main window\r\n"); else
-                    if (event.xexpose.window == pFolderList->window) message.append("Folderlist window\r\n"); else
-                    if (event.xexpose.window == pFileList->window) message.append("Filelist window\r\n"); else
-                    if (event.xexpose.window == pPrevDrawing->window) message.append("Preview drawing window\r\n"); else
-                    if (event.xexpose.window == pDrawing->window) message.append("Drawing window\r\n"); else
-                    {
-                        message.append("Unknown Window\r\n");
-                    }
-                    Error::WriteLog("INFO", "Main", message.c_str());
-                #endif // EVENTDEBUG
+                if ((event.xexpose.window == mainWindow) && pFolderList && pFolderList->window)
+                {
+                   pFolderList->Paint();
+                }
+
+                if ((event.xexpose.window == mainWindow) && pPrevDrawing && pPrevDrawing->window)
+                {
+                   pPrevDrawing->Paint();
+                }
+
+                if ((event.xexpose.window == mainWindow) && pFileList && pFileList->window)
+                {
+                   pFileList->Paint();
+                }
                 break;
 
             case ConfigureNotify:
@@ -324,7 +362,40 @@ int main(int argc, char* argv[])
                 {
                    pFileList->SetSize(event.xconfigure.width - prevWidth - 6 - HOFFSET, event.xconfigure.height - VOFFSET);
                 }
+                break;
 
+            case UnmapNotify:
+                #ifdef EVENTDEBUG
+                    message = "Window UnmapNotify Event: ";
+                    if (event.xexpose.window == mainWindow) message.append("Main window\r\n"); else
+                    if (event.xexpose.window == pFolderList->window) message.append("Folderlist window\r\n"); else
+                    if (event.xexpose.window == pFileList->window) message.append("Filelist window\r\n"); else
+                    if (event.xexpose.window == pPrevDrawing->window) message.append("Preview drawing window\r\n"); else
+                    if (event.xexpose.window == pDrawing->window) message.append("Drawing window\r\n"); else
+                    {
+                        message.append("Unknown Window\r\n");
+                    }
+                    Error::WriteLog("INFO", "Main", message.c_str());
+                #endif // EVENTDEBUG
+
+                if (event.xexpose.window == mainWindow) mapped = false;
+                break;
+
+            case MapNotify:
+                #ifdef EVENTDEBUG
+                    message = "Window MapNotify Event: ";
+                    if (event.xexpose.window == mainWindow) message.append("Main window\r\n"); else
+                    if (event.xexpose.window == pFolderList->window) message.append("Folderlist window\r\n"); else
+                    if (event.xexpose.window == pFileList->window) message.append("Filelist window\r\n"); else
+                    if (event.xexpose.window == pPrevDrawing->window) message.append("Preview drawing window\r\n"); else
+                    if (event.xexpose.window == pDrawing->window) message.append("Drawing window\r\n"); else
+                    {
+                        message.append("Unknown Window\r\n");
+                    }
+                    Error::WriteLog("INFO", "Main", message.c_str());
+                #endif // EVENTDEBUG
+
+                if (event.xexpose.window == mainWindow) mapped = true;
                 break;
 
             case ButtonPress:
@@ -742,21 +813,6 @@ int main(int argc, char* argv[])
 
                 break;
 
-            case Expose:
-                #ifdef EVENTDEBUG
-                    message = "Window Expose Event: ";
-                    if (event.xexpose.window == mainWindow) message.append("Main window\r\n"); else
-                    if (event.xexpose.window == pFolderList->window) message.append("Folderlist window\r\n"); else
-                    if (event.xexpose.window == pFileList->window) message.append("Filelist window\r\n"); else
-                    if (event.xexpose.window == pPrevDrawing->window) message.append("Preview drawing window\r\n"); else
-                    if (event.xexpose.window == pDrawing->window) message.append("Drawing window\r\n"); else
-                    {
-                        message.append("Unknown Window\r\n");
-                    }
-                    Error::WriteLog("INFO", "Main", message.c_str());
-                #endif // EVENTDEBUG
-                break;
-
             case DestroyNotify:
                 #ifdef EVENTDEBUG
                     message = "Window DestroyNotify Event: ";
@@ -826,6 +882,7 @@ int main(int argc, char* argv[])
 *********************************************************************/
 void FullScreen(void)
 {
+
     oldScreenX      = curScreenX;
     oldScreenY      = curScreenY;
     oldScreenWidth  = curScreenWidth;
@@ -835,17 +892,36 @@ void FullScreen(void)
     XUnmapWindow(pDisplay, mainWindow);
     XSync(pDisplay, false);
 
-    Atom atoms[3] = {
+    for (int i=0; (i<100) && mapped; i++)
+    {
+        // Wait for unmapping (needed for some distributions)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+        XEvent event;
+        XNextEvent(pDisplay, &event);
+        switch (event.type)
+        {
+            case UnmapNotify:
+                mapped = false;
+                break;
+
+            case MapNotify:
+                mapped = true;
+                break;
+        }
+    }
+
+    Atom atoms[] = {
                         XInternAtom(pDisplay, "_NET_WM_STATE_ADD", false),
                         XInternAtom(pDisplay, "_NET_WM_STATE_FULLSCREEN", false),
                         None
-                    };
+                   };
 
     XChangeProperty(pDisplay, mainWindow, XInternAtom(pDisplay, "_NET_WM_STATE", False), XA_ATOM, 32, PropModeReplace, (const unsigned char*)atoms, 2);
 
     // Make window visible
     XMapWindow(pDisplay, mainWindow);
-    XFlush(pDisplay);
+    XSync(pDisplay, false);
  }
 
 /*********************************************************************
@@ -857,22 +933,43 @@ void MaximizedScreen(void)
 
     // Unmap window for enabling changing properties
     XUnmapWindow(pDisplay, mainWindow);
-    XMoveResizeWindow(pDisplay, mainWindow, 0, 0, pScreen->width, pScreen->height);
     XSync(pDisplay, false);
 
-    Atom atoms[5] = {
+    for (int i=0; (i<100) && mapped; i++)
+    {
+        // Wait for unmapping (needed for some distributions)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+        XEvent event;
+        XNextEvent(pDisplay, &event);
+        switch (event.type)
+        {
+            case UnmapNotify:
+                mapped = false;
+                break;
+
+            case MapNotify:
+                mapped = true;
+                break;
+        }
+    }
+
+    Atom atoms[] = {
                         XInternAtom(pDisplay, "_NET_WM_STATE_ADD", false),
                         XInternAtom(pDisplay, "_NET_WM_STATE_MAXIMIZED_VERT", false),
                         XInternAtom(pDisplay, "_NET_WM_STATE_ADD", false),
                         XInternAtom(pDisplay, "_NET_WM_STATE_MAXIMIZED_HORZ", false),
                         None
-                    };
+                   };
 
     XChangeProperty(pDisplay, mainWindow, XInternAtom(pDisplay, "_NET_WM_STATE", False), XA_ATOM, 32, PropModeReplace, (const unsigned char*)atoms, 4);
 
     // Make window visible
     XMapWindow(pDisplay, mainWindow);
     XFlush(pDisplay);
+
+    // Change to 0 position and max size
+    XMoveResizeWindow(pDisplay, mainWindow, 0, 0, pScreen->width, pScreen->height);
 }
 
 /*********************************************************************
@@ -884,11 +981,30 @@ void NormalScreen(void)
     XUnmapWindow(pDisplay, mainWindow);
     XSync(pDisplay, false);
 
-    Atom atoms[3] = {
+    for (int i=0; (i<100) && mapped; i++)
+    {
+        // Wait for unmapping (needed for some distributions)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+        XEvent event;
+        XNextEvent(pDisplay, &event);
+        switch (event.type)
+        {
+            case UnmapNotify:
+                mapped = false;
+                break;
+
+            case MapNotify:
+                mapped = true;
+                break;
+        }
+    }
+
+    Atom atoms[] = {
                         XInternAtom(pDisplay, "_NET_WM_STATE_ADD", false),
                         XInternAtom(pDisplay, "_NET_WM_STATE_MODAL", false),
                         None
-                    };
+                   };
 
     XChangeProperty(pDisplay, mainWindow, XInternAtom(pDisplay, "_NET_WM_STATE", False), XA_ATOM, 32, PropModeReplace, (const unsigned char*)atoms, 2);
 
@@ -898,8 +1014,5 @@ void NormalScreen(void)
     // Make window visible
     XMapWindow(pDisplay, mainWindow);
     XFlush(pDisplay);
-
-    // Change to old position and size
-    XMoveResizeWindow(pDisplay, mainWindow, oldScreenX, oldScreenY, oldScreenWidth, oldScreenHeight);
 }
 
