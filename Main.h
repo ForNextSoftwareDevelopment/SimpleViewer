@@ -21,7 +21,7 @@
 #define VOFFSET     6
 #define HOFFSET     6
 
-#define EVENTDEBUG
+#undef EVENTDEBUG
 
 static const char *event_names[] = {
    "",

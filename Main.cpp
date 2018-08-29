@@ -273,6 +273,7 @@ int main(int argc, char* argv[])
     // Create full drawing window
     Drawing *pDrawing = new Drawing(0, 0, pScreen->width, pScreen->height);
     pDrawing->CreateWindow(pDisplay, mainWindow);
+    pDrawing->Detach();
 
     // Map main window
     XMapWindow(pDisplay, mainWindow);
@@ -280,6 +281,7 @@ int main(int argc, char* argv[])
     // If image provided in arguments, then show full-size
     if (argc > 1)
     {
+        pDrawing->Attach();
         pDrawing->LoadImage(startPic.c_str());
         FullScreen();
         pDrawing->Paint();
@@ -892,7 +894,7 @@ void FullScreen(void)
     XUnmapWindow(pDisplay, mainWindow);
     XSync(pDisplay, false);
 
-    for (int i=0; (i<100) && mapped; i++)
+    for (int i=0; (i<10) && mapped; i++)
     {
         // Wait for unmapping (needed for some distributions)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -922,6 +924,25 @@ void FullScreen(void)
     // Make window visible
     XMapWindow(pDisplay, mainWindow);
     XSync(pDisplay, false);
+
+    for (int i=0; (i<10) && !mapped; i++)
+    {
+        // Wait for mapping (needed for some distributions)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+        XEvent event;
+        XNextEvent(pDisplay, &event);
+        switch (event.type)
+        {
+            case UnmapNotify:
+                mapped = false;
+                break;
+
+            case MapNotify:
+                mapped = true;
+                break;
+        }
+    }
  }
 
 /*********************************************************************
@@ -935,7 +956,7 @@ void MaximizedScreen(void)
     XUnmapWindow(pDisplay, mainWindow);
     XSync(pDisplay, false);
 
-    for (int i=0; (i<100) && mapped; i++)
+    for (int i=0; (i<10) && mapped; i++)
     {
         // Wait for unmapping (needed for some distributions)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -966,7 +987,26 @@ void MaximizedScreen(void)
 
     // Make window visible
     XMapWindow(pDisplay, mainWindow);
-    XFlush(pDisplay);
+    XSync(pDisplay, false);
+
+    for (int i=0; (i<10) && !mapped; i++)
+    {
+        // Wait for mapping (needed for some distributions)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+        XEvent event;
+        XNextEvent(pDisplay, &event);
+        switch (event.type)
+        {
+            case UnmapNotify:
+                mapped = false;
+                break;
+
+            case MapNotify:
+                mapped = true;
+                break;
+        }
+    }
 
     // Change to 0 position and max size
     XMoveResizeWindow(pDisplay, mainWindow, 0, 0, pScreen->width, pScreen->height);
@@ -981,7 +1021,7 @@ void NormalScreen(void)
     XUnmapWindow(pDisplay, mainWindow);
     XSync(pDisplay, false);
 
-    for (int i=0; (i<100) && mapped; i++)
+    for (int i=0; (i<10) && mapped; i++)
     {
         // Wait for unmapping (needed for some distributions)
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -1013,6 +1053,25 @@ void NormalScreen(void)
 
     // Make window visible
     XMapWindow(pDisplay, mainWindow);
-    XFlush(pDisplay);
+    XSync(pDisplay, false);
+
+    for (int i=0; (i<10) && !mapped; i++)
+    {
+        // Wait for mapping (needed for some distributions)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+        XEvent event;
+        XNextEvent(pDisplay, &event);
+        switch (event.type)
+        {
+            case UnmapNotify:
+                mapped = false;
+                break;
+
+            case MapNotify:
+                mapped = true;
+                break;
+        }
+    }
 }
 
