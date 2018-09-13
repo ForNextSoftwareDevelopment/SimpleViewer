@@ -190,6 +190,7 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
+    // get default screen
     int screen = DefaultScreen(pDisplay);
 
     // Define used colors
@@ -264,6 +265,32 @@ int main(int argc, char* argv[])
     Drawing *pPrevDrawing = new Drawing(HOFFSET-4, pScreen->height - prevHeight + VOFFSET-4, prevWidth, prevHeight - VOFFSET);
     pPrevDrawing->CreateWindow(pDisplay, mainWindow);
     pPrevDrawing->LoadImage(startPic.c_str());
+
+    // Change icon in taskbar
+    unsigned int iconWidth = 48;
+    unsigned int iconHeight = 48;
+    uint32_t *pImageData = Utils::LoadImage(startPic, &iconWidth, &iconHeight, true, true);
+    char *ptr = (char*) pImageData;
+
+    if (pImageData != NULL)
+    {
+        uint64_t *pIconData = new uint64_t [2 + (iconWidth * iconHeight)];
+        pIconData[0] = iconWidth;
+        pIconData[1] = iconHeight;
+        for (int i = 0; i < (iconWidth * iconHeight); i++)
+        {
+            uint64_t px;
+            px = 0xFF000000 | ((ptr[i * 4 + 2]) << 16) | (ptr[i * 4 + 1] << 8) | (ptr[i * 4]);
+            pIconData[i + 2] = px;
+        }
+
+        XChangeProperty(pDisplay, mainWindow, XInternAtom(pDisplay, "_NET_WM_ICON", FALSE), XA_CARDINAL, 32, PropModeReplace, (unsigned char*) pIconData, 2 + (iconWidth * iconHeight));
+        free(pImageData);
+        free(pIconData);
+    } else
+    {
+        Error::WriteLog("ERROR", "Main", "Can't read icon file (icon.jpg)");
+    }
 
     // Show current folder to be displayed
     current = "SimpleViewer: ";

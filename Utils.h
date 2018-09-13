@@ -5,6 +5,8 @@
 #include <ctime>
 #include <string>
 #include <limits>
+#include <csetjmp>
+#include <jpeglib.h>
 #include "Error.h"
 
 namespace Utils
@@ -26,5 +28,11 @@ namespace Utils
 
     // Show all window property values
     bool showWindowProperties(Display* display, Window window, std::string propname);
+
+    // Load image
+    uint32_t* LoadImage(std::string path, unsigned int *width, unsigned int *height, bool resizing, bool deforming);
+
+    // Bilinear resize image
+    uint32_t* ScaleImage(uint32_t *pBitmap, unsigned int w, unsigned int h, unsigned int w2, unsigned int h2);
 }
 

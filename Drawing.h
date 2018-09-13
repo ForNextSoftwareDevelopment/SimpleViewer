@@ -36,10 +36,7 @@ class Drawing
         unsigned int pixSize;
 
         // Size of the image
-        unsigned int imWidth, imHeight;
-
-        // Size of the resized image
-        unsigned int imResWidth, imResHeight;
+        unsigned int imgWidth, imgHeight;
 
         // Constructor
         Drawing(unsigned short x, unsigned short y, unsigned short width, unsigned short height);
@@ -57,7 +54,7 @@ class Drawing
         void Detach(void);
 
         // Load new image
-        bool LoadImage(std::string img);
+        bool LoadImage(std::string path);
 
         // Paint image in window
         void Paint();
@@ -89,8 +86,5 @@ class Drawing
 
         // pixmap to draw
         Pixmap pixmap;
-
-        // Bilinear resize image
-        uint32_t* ScaleImage(uint32_t *pBitmap, unsigned int w, unsigned int h, unsigned int w2, unsigned int h2);
 };
 
