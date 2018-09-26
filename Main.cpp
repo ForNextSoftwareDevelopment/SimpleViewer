@@ -553,6 +553,7 @@ int main(int argc, char* argv[])
 
                             if (!scrollBarSelected)
                             {
+                                // Check for double click
                                 t2 = t1;
                                 t1 = std::chrono:: high_resolution_clock::now();
                                 timeSpan = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t2);
@@ -568,15 +569,17 @@ int main(int argc, char* argv[])
                                     iFile = pFileList->GetSelectedFile();
                                     if (iFile != "")
                                     {
-                                        // Show full screen drawing
-                                        FullScreen();
-
                                         img = pFileList->currentFolder;
                                         img.append("/");
                                         img.append(iFile);
-                                        pDrawing->LoadImage(img);
-                                        pDrawing->Attach();
-                                        pDrawing->Paint();
+                                        bool result = pDrawing->LoadImage(img);
+                                        if (result)
+                                        {
+                                            // Show full screen drawing
+                                            FullScreen();
+                                            pDrawing->Attach();
+                                            pDrawing->Paint();
+                                        }
                                     }
                                 }
                             }

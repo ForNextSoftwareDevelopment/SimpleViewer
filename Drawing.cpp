@@ -154,41 +154,52 @@ bool Drawing::LoadImage(std::string path)
     // Load image data
     imgWidth  = width;
     imgHeight = height;
-    uint32_t *pImageData = Utils::LoadImage(path, &imgWidth, &imgHeight, true, false);
-
-    // Free memory from original bitmap
-    delete (pBitmap);
-
-    // 32 for 24 and 32 bpp, 16, for 15&16
-    int bitmap_pad = 32;
-
-    // number of bytes in the client image between the start of one scanline and the start of the next
-    int bytes_per_line = 0;
 
     int screen = DefaultScreen(display);
     int depth = DefaultDepth(display, screen);
 
-    XImage *pImg = XCreateImage(display, CopyFromParent, depth, ZPixmap, 0, (char*)pImageData, imgWidth, imgHeight, bitmap_pad, bytes_per_line);
-    if (!pImg)
+    uint32_t *pImageData = Utils::LoadImage(path, &imgWidth, &imgHeight, true, false);
+
+    if (pImageData != NULL)
     {
-        Error::WriteLog("ERROR", "Drawing::LoadImage", "Can't create image");
-        imgWidth = 0;
-        imgHeight = 0;
-        return(false);
+        // Free memory from original bitmap
+        delete (pBitmap);
+
+        // 32 for 24 and 32 bpp, 16, for 15&16
+        int bitmap_pad = 32;
+
+        // number of bytes in the client image between the start of one scanline and the start of the next
+        int bytes_per_line = 0;
+
+        XImage *pImg = XCreateImage(display, CopyFromParent, depth, ZPixmap, 0, (char*)pImageData, imgWidth, imgHeight, bitmap_pad, bytes_per_line);
+        if (!pImg)
+        {
+            Error::WriteLog("ERROR", "Drawing::LoadImage", "Can't create image");
+            imgWidth = 0;
+            imgHeight = 0;
+            return(false);
+        }
+
+        // Free old pixmap
+        if (pixmap) XFreePixmap(display, pixmap);
+
+        // Create new pixmap and put image in it
+        pixmap = XCreatePixmap(display, window, imgWidth, imgHeight, depth);
+        XPutImage(display, pixmap, gc, pImg, 0, 0, 0, 0, imgWidth, imgHeight);
+
+        // Free image
+        XDestroyImage(pImg);
+
+        // Draw image
+        Paint();
+    } else
+    {
+        XClearArea(display, window, 0, 0, width, height, false);
+        XSetForeground(display, gc, black.pixel);
+        XDrawString (display, window, gc, width / 3, height / 3, "ERROR READING FILE", strlen("ERROR READING FILE"));
+
+        return (false);
     }
-
-    // Free old pixmap
-    if (pixmap) XFreePixmap(display, pixmap);
-
-    // Create new pixmap and put image in it
-    pixmap = XCreatePixmap(display, window, imgWidth, imgHeight, depth);
-    XPutImage(display, pixmap, gc, pImg, 0, 0, 0, 0, imgWidth, imgHeight);
-
-    // Free image
-    XDestroyImage(pImg);
-
-    // Draw image
-    Paint();
 
     return (true);
 }
