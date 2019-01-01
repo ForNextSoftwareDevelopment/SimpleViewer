@@ -1,6 +1,7 @@
 #pragma once
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/cursorfont.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,6 +41,12 @@ class FiFoList
 
         // Entry to be selected on Fill
         std::string toBeSelected;
+
+        // Size of the control
+        int width, height;
+
+        // Lineheight (depending on fontsize used)
+        int lineHeight;
 
         // Show files/folders or both
         bool showFiles;
@@ -97,12 +104,6 @@ class FiFoList
 
         // Coordinates of the start of the control
         int x, y;
-
-        // Size of the control
-        int width, height;
-
-        // Lineheight (depending on fontsize used)
-        int lineHeight;
 
         // Offset in displaying entries
         int offset;

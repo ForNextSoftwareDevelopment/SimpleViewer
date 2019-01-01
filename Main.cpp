@@ -740,12 +740,12 @@ int main(int argc, char* argv[])
 
                         // Page up
                         case 112:
-                            pFolderList->ScrollUp(10);
+                            pFolderList->ScrollUp(pFolderList->height / pFolderList->lineHeight);
                             break;
 
                         // Page down
                         case 117:
-                            pFolderList->ScrollDown(10);
+                            pFolderList->ScrollDown(pFolderList->height / pFolderList->lineHeight);
                             break;
                     }
 
@@ -812,12 +812,12 @@ int main(int argc, char* argv[])
 
                         // Page up
                         case 112:
-                            pFileList->ScrollUp(10);
+                            pFileList->ScrollUp(pFileList->height / pFileList->lineHeight);
                             break;
 
                         // Page down
                         case 117:
-                            pFileList->ScrollDown(10);
+                            pFileList->ScrollDown(pFileList->height / pFileList->lineHeight);
                             break;
                     }
                 }

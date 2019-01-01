@@ -167,6 +167,11 @@ bool FiFoList::Fill (std::string folder)
         }
     }
 
+    // Set wait cursor
+    Cursor watch = XCreateFontCursor(pDisplay, XC_watch);
+    XDefineCursor(pDisplay, window, watch);
+    XFlush(pDisplay);
+
     // Read all files/folders
     while ((dirp = readdir(dp)) != NULL)
     {
@@ -219,6 +224,11 @@ bool FiFoList::Fill (std::string folder)
     {
         if ((*it).name == toBeSelected) selectedFiFo = it;
     }
+
+    // Set regular cursor
+    Cursor regular = XCreateFontCursor (pDisplay, XC_arrow);
+    XDefineCursor (pDisplay, window, regular);
+    XFlush(pDisplay);
 
     // Show in window
     Paint();
@@ -317,7 +327,7 @@ bool FiFoList::ButtonPressed(int mouseX, int mouseY)
     // Check if clicked in scrollbar
     if (mouseX > (width - 10))
     {
-        int step = fifoList.size() / 10;
+        int step = height / lineHeight;
         if (step == 0) step = 1;
         if (mouseY < posSlider) ScrollUp(step);
         else ScrollDown(step);
@@ -536,7 +546,7 @@ void FiFoList::Paint()
     // Paint all file names and sizes
     int xText = 0;
     int yText = lineHeight;
-    for(it = start; it != fifoList.end(); it++)
+    for(it = start; (it != fifoList.end()) && (yText < height); it++)
     {
         // Select different background color if selected entry is a folder
         if ((*it).type == FTYPE::FFOLDER)
